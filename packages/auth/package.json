@@ -1,0 +1,27 @@
+{
+	"name": "@artfromromania/auth",
+	"version": "0.1.0",
+	"private": true,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+	},
+	"dependencies": {
+		"@artfromromania/shared": "workspace:*",
+		"@upstash/ratelimit": "^1.0.0",
+		"@upstash/redis": "^1.28.4",
+		"argon2": "^0.44.0",
+		"jose": "^5.2.0",
+		"lru-cache": "^10.1.0",
+		"zod": "^3.23.8"
+	},
+	"devDependencies": {
+		"@artfromromania/tsconfig": "workspace:*",
+		"@types/node": "^22.10.2",
+		"typescript": "^5.6.3"
+	}
+}

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: artfromromania-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: artfromromania
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d artfromromania"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - artfromromania-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  artfromromania-network:
+    driver: bridge

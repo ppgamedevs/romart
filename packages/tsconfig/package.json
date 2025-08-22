@@ -1,0 +1,13 @@
+{
+	"name": "@artfromromania/tsconfig",
+	"version": "0.1.0",
+	"private": true,
+	"files": [
+		"tsconfig.base.json",
+		"tsconfig.next.json",
+		"tsconfig.node.json"
+	],
+	"devDependencies": {
+		"typescript": "^5.5.3"
+	}
+}

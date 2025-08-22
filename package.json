@@ -1,0 +1,41 @@
+{
+	"name": "artfromromania",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev --parallel",
+		"dev:web": "turbo run dev --filter=@artfromromania/web",
+		"dev:api": "turbo run dev --filter=@artfromromania/api",
+		"dev:db": "turbo run dev --filter=@artfromromania/db",
+		"dev:auth": "turbo run dev --filter=@artfromromania/auth",
+		"lint": "turbo run lint",
+		"typecheck": "turbo run typecheck",
+		"db:up": "docker-compose up -d",
+		"db:down": "docker-compose down",
+		"db:migrate": "turbo run db:migrate --filter=@artfromromania/db",
+		"db:seed": "turbo run db:seed --filter=@artfromromania/db",
+		"db:studio": "turbo run db:studio --filter=@artfromromania/db",
+		"db:generate": "turbo run db:generate --filter=@artfromromania/db",
+		"db:reset": "turbo run db:reset --filter=@artfromromania/db",
+		"auth:typecheck:web": "turbo run typecheck --filter=@artfromromania/web",
+		"auth:dev:web": "turbo run dev --filter=@artfromromania/web",
+		"auth:dev:api": "turbo run dev --filter=@artfromromania/api"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.6"
+	},
+	"packageManager": "pnpm@10.4.0",
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"lint-staged": {
+		"*.{js,jsx,ts,tsx}": [
+			"eslint --fix",
+			"prettier --write"
+		],
+		"*.{json,md,yml,yaml}": [
+			"prettier --write"
+		]
+	}
+}

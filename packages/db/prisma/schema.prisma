@@ -1,0 +1,387 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+	provider = "prisma-client-js"
+}
+
+datasource db {
+	provider = "postgresql"
+	url      = env("DATABASE_URL")
+	directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+	ADMIN
+	ARTIST
+	BUYER
+}
+
+enum KycStatus {
+	PENDING
+	APPROVED
+	REJECTED
+}
+
+enum KycDocumentType {
+	ID_CARD
+	PASSPORT
+	DRIVER_LICENSE
+	OTHER
+}
+
+enum ArtworkStatus {
+	DRAFT
+	PUBLISHED
+	SOLD
+	ARCHIVED
+}
+
+enum ArtworkVisibility {
+	PUBLIC
+	PRIVATE
+}
+
+enum ArtworkKind {
+	ORIGINAL
+	EDITIONED
+	DIGITAL
+}
+
+enum ImageKind {
+	ARTWORK
+	AVATAR
+	COVER
+	KYC
+}
+
+enum EditionType {
+	PRINT
+	DIGITAL
+}
+
+enum OrderStatus {
+	PENDING
+	PAID
+	FAILED
+	REFUNDED
+	CANCELLED
+}
+
+enum PaymentProvider {
+	STRIPE
+	PAYPAL
+	TEST
+}
+
+enum OrderItemKind {
+	ORIGINAL
+	PRINT
+	DIGITAL
+}
+
+enum PayoutStatus {
+	PENDING
+	PAID
+	FAILED
+}
+
+enum PayoutProvider {
+	STRIPE
+	MANUAL
+	TEST
+}
+
+model User {
+	id           String   @id @default(cuid())
+	email        String   @unique
+	name         String
+	role         UserRole @default(BUYER)
+	passwordHash String?
+	createdAt    DateTime @default(now())
+	updatedAt    DateTime @updatedAt
+
+	// Relations
+	artist     Artist?
+	orders     Order[]
+	addresses  Address[]
+	auditLogs  AuditLog[]
+	accounts   Account[]
+	sessions   Session[]
+
+	@@map("users")
+}
+
+model Artist {
+	id              String   @id @default(cuid())
+	userId          String   @unique
+	slug            String   @unique
+	displayName     String
+	avatarUrl       String?
+	coverUrl        String?
+	locationCity    String?
+	locationCountry String?
+	bio             String?
+	statement       String?
+	education       Json?
+	exhibitions     Json?
+	awards          Json?
+	socials         Json?
+	onboardingStep  Int      @default(1)
+	completionScore Int      @default(0)
+	slugLockedAt    DateTime?
+	kycStatus       KycStatus @default(PENDING)
+	createdAt       DateTime @default(now())
+	updatedAt       DateTime @updatedAt
+
+	// Relations
+	user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+	artworks        Artwork[]
+	orderItems      OrderItem[]
+	payouts         Payout[]
+	kycVerification KycVerification?
+	images          Image[]
+
+	@@map("artists")
+}
+
+model Artwork {
+	id             String            @id @default(cuid())
+	artistId       String
+	slug           String            @unique
+	title          String
+	description    String?
+	year           Int?
+	medium         String?
+	widthCm        Decimal?
+	heightCm       Decimal?
+	depthCm        Decimal?
+	framed         Boolean           @default(false)
+	category       String?
+	status         ArtworkStatus     @default(DRAFT)
+	visibility     ArtworkVisibility @default(PRIVATE)
+	heroImageUrl   String?
+	priceAmount    Int
+	priceCurrency  String            @default("EUR")
+	kind           ArtworkKind
+	createdAt      DateTime          @default(now())
+	updatedAt      DateTime          @updatedAt
+
+	// Relations
+	artist    Artist     @relation(fields: [artistId], references: [id], onDelete: Cascade)
+	editions  Edition[]
+	images    Image[]
+	orderItems OrderItem[]
+
+	@@index([artistId, status])
+	@@map("artworks")
+}
+
+model Edition {
+	id               String       @id @default(cuid())
+	artworkId        String
+	sku              String       @unique
+	runSize          Int?
+	available        Int?
+	type             EditionType
+	unitAmount       Int
+	currency         String       @default("EUR")
+	downloadableUrl  String?
+	createdAt        DateTime     @default(now())
+	updatedAt        DateTime     @updatedAt
+
+	// Relations
+	artwork    Artwork     @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+	orderItems OrderItem[]
+
+	@@map("editions")
+}
+
+model Image {
+	id           String    @id @default(cuid())
+	artworkId    String?
+	artistId     String?
+	kind         ImageKind @default(ARTWORK)
+	url          String
+	width        Int?
+	height       Int?
+	position     Int       @default(0)
+	alt          String?
+	storageKey   String?
+	contentType  String?
+	sizeBytes    Int?
+	variantMeta  Json?
+	createdAt    DateTime  @default(now())
+
+	// Relations
+	artwork Artwork? @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+	artist  Artist?  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+	@@index([artworkId, createdAt])
+	@@index([artistId, kind])
+	@@map("images")
+}
+
+model Order {
+	id                 String          @id @default(cuid())
+	buyerId            String
+	status             OrderStatus     @default(PENDING)
+	platformFeeBps     Int             @default(3000)
+	totalAmount        Int
+	currency           String          @default("EUR")
+	paymentProvider    PaymentProvider @default(TEST)
+	providerIntentId   String?
+	shippingAddressId  String?
+	billingAddressId   String?
+	createdAt          DateTime        @default(now())
+	updatedAt          DateTime        @updatedAt
+
+	// Relations
+	buyer      User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+	items      OrderItem[]
+	shippingAddress Address? @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
+	billingAddress  Address? @relation("OrderBillingAddress", fields: [billingAddressId], references: [id])
+
+	@@index([buyerId, createdAt])
+	@@map("orders")
+}
+
+model OrderItem {
+	id         String        @id @default(cuid())
+	orderId    String
+	artistId   String
+	kind       OrderItemKind
+	artworkId  String?
+	editionId  String?
+	quantity   Int           @default(1)
+	unitAmount Int
+	subtotal   Int
+	createdAt  DateTime      @default(now())
+
+	// Relations
+	order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	artist  Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+	artwork Artwork? @relation(fields: [artworkId], references: [id], onDelete: SetNull)
+	edition Edition? @relation(fields: [editionId], references: [id], onDelete: SetNull)
+	payouts Payout[]
+
+	@@map("order_items")
+}
+
+model Address {
+	id         String   @id @default(cuid())
+	userId     String?
+	line1      String
+	line2      String?
+	city       String
+	region     String?
+	postalCode String?
+	country    String
+	createdAt  DateTime @default(now())
+	updatedAt  DateTime @updatedAt
+
+	// Relations
+	user            User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+	shippingOrders  Order[] @relation("OrderShippingAddress")
+	billingOrders   Order[] @relation("OrderBillingAddress")
+
+	@@map("addresses")
+}
+
+model Payout {
+	id                 String         @id @default(cuid())
+	artistId           String
+	orderItemId        String
+	amount             Int
+	currency           String         @default("EUR")
+	status             PayoutStatus   @default(PENDING)
+	provider           PayoutProvider @default(TEST)
+	providerTransferId String?
+	createdAt          DateTime       @default(now())
+	updatedAt          DateTime       @updatedAt
+
+	// Relations
+	artist    Artist     @relation(fields: [artistId], references: [id], onDelete: Cascade)
+	orderItem OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+	@@index([artistId, createdAt])
+	@@map("payouts")
+}
+
+model AuditLog {
+	id         String   @id @default(cuid())
+	actorUserId String?
+	action     String
+	entity     String
+	entityId   String
+	metadata   Json?
+	createdAt  DateTime @default(now())
+
+	// Relations
+	actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+	@@map("audit_logs")
+}
+
+// Auth.js (NextAuth) tables
+model Account {
+	id                String  @id @default(cuid())
+	userId            String
+	type              String
+	provider          String
+	providerAccountId String
+	refresh_token     String? @db.Text
+	access_token      String? @db.Text
+	expires_at        Int?
+	token_type        String?
+	scope             String?
+	id_token          String? @db.Text
+	session_state     String?
+	user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+	@@unique([provider, providerAccountId])
+	@@map("accounts")
+}
+
+model Session {
+	id           String   @id @default(cuid())
+	sessionToken String   @unique
+	userId       String
+	expires      DateTime
+	user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+	@@map("sessions")
+}
+
+model VerificationToken {
+	identifier String
+	token      String   @unique
+	expires    DateTime
+
+	@@unique([identifier, token])
+	@@map("verification_tokens")
+}
+
+model KycVerification {
+	id              String           @id @default(cuid())
+	artistId        String           @unique
+	status          KycStatus        @default(PENDING)
+	provider        String           @default("MANUAL")
+	country         String
+	documentType    KycDocumentType
+	docLast4        String?
+	frontImageUrl   String?
+	backImageUrl    String?
+	selfieImageUrl  String?
+	notes           String?
+	reviewedById    String?
+	reviewedAt      DateTime?
+	createdAt       DateTime         @default(now())
+	updatedAt       DateTime         @updatedAt
+
+	// Relations
+	artist          Artist           @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+	@@index([status, createdAt])
+	@@map("kyc_verifications")
+}
