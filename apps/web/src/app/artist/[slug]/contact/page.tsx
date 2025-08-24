@@ -6,14 +6,15 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 interface ContactPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export default async function ContactPage({ params }: ContactPageProps) {
+  const { slug } = await params;
   const artist = await prisma.artist.findUnique({
-    where: { slug: params.slug },
+    where: { slug: slug },
     include: {
       user: {
         select: {
@@ -60,9 +61,9 @@ export default async function ContactPage({ params }: ContactPageProps) {
                 </div>
                 
                 <div className="mt-8 space-y-4">
-                  {artist.website && (
+                  {(artist.socials as any)?.website && (
                     <Button asChild variant="outline" className="w-full">
-                      <a href={artist.website} target="_blank" rel="noopener noreferrer">
+                      <a href={(artist.socials as any).website} target="_blank" rel="noopener noreferrer">
                         Visit Website
                       </a>
                     </Button>

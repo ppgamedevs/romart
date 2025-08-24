@@ -10,7 +10,8 @@
  * 4. Testing download functionality
  */
 
-import { S3Client, ListBucketsCommand, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import pkg from '@aws-sdk/client-s3'
+const { S3Client, ListBucketsCommand, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = pkg
 import { createReadStream } from 'fs'
 import { writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'

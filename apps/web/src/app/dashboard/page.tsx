@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { redirect } from "next/navigation"
 import { BecomeArtistButton } from "./become-artist-button"
+import { OrderHistory } from "./order-history"
 
 export default async function DashboardPage() {
 	const user = await getCurrentUser()
@@ -60,6 +61,8 @@ export default async function DashboardPage() {
 						</CardContent>
 					</Card>
 				</div>
+
+				<OrderHistory userId={user.id} />
 
 				<Card>
 					<CardHeader>

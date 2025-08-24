@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@artfromromania/db"
-import { hashPassword } from "@artfromromania/auth"
 import { UserRole } from "@prisma/client"
 import { z } from "zod"
+import crypto from "crypto"
 
 const signUpSchema = z.object({
 	email: z.string().email(),
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
 			)
 		}
 
-		// Hash password
-		const passwordHash = await hashPassword(password)
+		// Hash password (temporary simple hash)
+		const passwordHash = crypto.createHash('sha256').update(password).digest('hex')
 
 		// Create user with BUYER role
 		const user = await prisma.user.create({

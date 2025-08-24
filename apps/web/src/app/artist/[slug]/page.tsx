@@ -1,22 +1,25 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@artfromromania/db"
 import { Metadata } from "next"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ExternalLink, MapPin, Globe, Instagram, Facebook, Twitter } from "lucide-react"
+import { ExternalLink, MapPin, Globe, Instagram, Facebook, Twitter, Palette } from "lucide-react"
 import Link from "next/link"
+import { formatPrice } from "@artfromromania/shared"
+import { SocialMedia, isSocialMedia } from "@/types/socials"
 
 interface ArtistPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: ArtistPageProps): Promise<Metadata> {
+  const { slug } = await params;
   const artist = await prisma.artist.findUnique({
-    where: { slug: params.slug },
+    where: { slug: slug },
     include: {
       user: {
         select: {
@@ -55,8 +58,9 @@ export async function generateMetadata({ params }: ArtistPageProps): Promise<Met
 }
 
 export default async function ArtistPage({ params }: ArtistPageProps) {
+  const { slug } = await params;
   const artist = await prisma.artist.findUnique({
-    where: { slug: params.slug },
+    where: { slug: slug },
     include: {
       user: {
         select: {
@@ -66,13 +70,36 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
     }
   })
 
-  if (!artist || artist.user.role !== "ARTIST") {
+  if (!artist) {
+    notFound()
+  }
+
+  // Fetch artworks separately to avoid TypeScript issues
+  const artworks = await prisma.artwork.findMany({
+    where: {
+      artistId: artist.id,
+      status: "PUBLISHED"
+    },
+    include: {
+      images: {
+        orderBy: { position: 'asc' },
+        take: 1,
+      },
+      editions: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (!artist) {
     notFound()
   }
 
   const education = Array.isArray(artist.education) ? artist.education : []
   const exhibitions = Array.isArray(artist.exhibitions) ? artist.exhibitions : []
   const awards = Array.isArray(artist.awards) ? artist.awards : []
+
+  // Type the socials object properly
+  const socials = isSocialMedia(artist.socials) ? artist.socials : null;
 
   // Generate JSON-LD structured data
   const jsonLd = {
@@ -82,12 +109,12 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
     "url": `https://romart.com/artist/${artist.slug}`,
     "image": artist.avatarUrl,
     "sameAs": [
-      artist.website,
-      artist.instagram ? `https://instagram.com/${artist.instagram}` : null,
-      artist.facebook ? `https://facebook.com/${artist.facebook}` : null,
-      artist.x ? `https://x.com/${artist.x}` : null,
-      artist.tiktok ? `https://tiktok.com/@${artist.tiktok}` : null,
-      artist.youtube ? `https://youtube.com/@${artist.youtube}` : null,
+      socials?.website,
+      socials?.instagram ? `https://instagram.com/${socials.instagram}` : null,
+      socials?.facebook ? `https://facebook.com/${socials.facebook}` : null,
+      socials?.x ? `https://x.com/${socials.x}` : null,
+      socials?.tiktok ? `https://tiktok.com/@${socials.tiktok}` : null,
+      socials?.youtube ? `https://youtube.com/@${socials.youtube}` : null,
     ].filter(Boolean),
     "address": {
       "@type": "PostalAddress",
@@ -235,18 +262,60 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
                 </Card>
               )}
 
-              {/* Artworks Section (Placeholder for Prompt 7) */}
+              {/* Artworks Section */}
               <Card>
                 <CardHeader>
                   <CardTitle>Artworks</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <div className="text-muted-foreground">
-                      <p>Artworks will be displayed here</p>
-                      <p className="text-sm">Coming soon in the next update</p>
+                  {artworks.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-muted-foreground">
+                        <p>No published artworks yet</p>
+                        <p className="text-sm">Check back soon for new works</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {artworks.map((artwork: any) => (
+                        <Link key={artwork.id} href={`/artwork/${artwork.slug}`}>
+                          <div className="group cursor-pointer">
+                            <div className="aspect-square rounded-lg overflow-hidden border mb-3">
+                              {artwork.images[0] ? (
+                                <img
+                                  src={artwork.images[0].url}
+                                  alt={artwork.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-muted flex items-center justify-center">
+                                  <div className="text-muted-foreground">
+                                    <Palette className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-xs">No image</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                                {artwork.title}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {artwork.kind}
+                                </Badge>
+                                {artwork.priceAmount > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatPrice(artwork.priceAmount, artwork.priceCurrency)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -265,13 +334,13 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
                     </Link>
                   </Button>
                   
-                  {(artist.website || artist.instagram || artist.facebook || artist.x || artist.tiktok || artist.youtube) && (
+                  {socials && (socials.website || socials.instagram || socials.facebook || socials.x || socials.tiktok || socials.youtube) && (
                     <div className="space-y-3">
                       <h4 className="font-medium">Social Media</h4>
                       <div className="space-y-2">
-                        {artist.website && (
+                        {socials?.website && (
                           <a
-                            href={artist.website}
+                            href={socials.website}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-blue-600 hover:underline"
@@ -281,63 +350,63 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {artist.instagram && (
+                        {socials?.instagram && (
                           <a
-                            href={`https://instagram.com/${artist.instagram}`}
+                            href={`https://instagram.com/${socials.instagram}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-pink-600 hover:underline"
                           >
                             <Instagram className="h-4 w-4" />
-                            <span>@{artist.instagram}</span>
+                            <span>@{socials.instagram}</span>
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {artist.facebook && (
+                        {socials?.facebook && (
                           <a
-                            href={`https://facebook.com/${artist.facebook}`}
+                            href={`https://facebook.com/${socials.facebook}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-blue-600 hover:underline"
                           >
                             <Facebook className="h-4 w-4" />
-                            <span>@{artist.facebook}</span>
+                            <span>@{socials.facebook}</span>
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {artist.x && (
+                        {socials?.x && (
                           <a
-                            href={`https://x.com/${artist.x}`}
+                            href={`https://x.com/${socials.x}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-black hover:underline"
                           >
                             <Twitter className="h-4 w-4" />
-                            <span>@{artist.x}</span>
+                            <span>@{socials.x}</span>
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {artist.tiktok && (
+                        {socials?.tiktok && (
                           <a
-                            href={`https://tiktok.com/@${artist.tiktok}`}
+                            href={`https://tiktok.com/@${socials.tiktok}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-black hover:underline"
                           >
                             <span className="font-bold text-lg">TikTok</span>
-                            <span>@{artist.tiktok}</span>
+                            <span>@{socials.tiktok}</span>
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {artist.youtube && (
+                        {socials?.youtube && (
                           <a
-                            href={`https://youtube.com/@${artist.youtube}`}
+                            href={`https://youtube.com/@${socials.youtube}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-red-600 hover:underline"
                           >
                             <span className="font-bold text-lg">YouTube</span>
-                            <span>@{artist.youtube}</span>
+                            <span>@{socials.youtube}</span>
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}

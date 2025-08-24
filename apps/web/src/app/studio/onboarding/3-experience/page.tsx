@@ -178,7 +178,7 @@ export default function Step3ExperiencePage() {
                     <Input
                       type="number"
                       value={edu.year || ""}
-                      onChange={(e) => updateEducation(index, "year", parseInt(e.target.value) || undefined)}
+                      onChange={(e) => updateEducation(index, "year", parseInt(e.target.value) || 0)}
                       placeholder="2020"
                       min="1900"
                       max={new Date().getFullYear()}
@@ -240,7 +240,7 @@ export default function Step3ExperiencePage() {
                     <Input
                       type="number"
                       value={exhibition.year || ""}
-                      onChange={(e) => updateExhibition(index, "year", parseInt(e.target.value) || undefined)}
+                      onChange={(e) => updateExhibition(index, "year", parseInt(e.target.value) || 0)}
                       placeholder="2023"
                       min="1900"
                       max={new Date().getFullYear()}
@@ -302,7 +302,7 @@ export default function Step3ExperiencePage() {
                     <Input
                       type="number"
                       value={award.year || ""}
-                      onChange={(e) => updateAward(index, "year", parseInt(e.target.value) || undefined)}
+                      onChange={(e) => updateAward(index, "year", parseInt(e.target.value) || 0)}
                       placeholder="2023"
                       min="1900"
                       max={new Date().getFullYear()}

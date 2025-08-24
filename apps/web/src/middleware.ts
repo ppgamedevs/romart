@@ -4,8 +4,18 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
-  const session = await auth()
   const { pathname } = request.nextUrl
+
+  // Skip middleware for static files and Next.js internal routes
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/static/') ||
+    pathname.includes('.') // Skip files with extensions
+  ) {
+    return NextResponse.next()
+  }
+
+  const session = await auth()
 
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -15,6 +25,9 @@ export async function middleware(request: NextRequest) {
     "/styleguide",
     "/api/health",
     "/api/auth",
+    "/manifest.json",
+    "/favicon.ico",
+    "/apple-touch-icon.png",
   ]
 
   // Check if the current path is public
@@ -104,6 +117,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    "/((?!_next/static|_next/image|favicon.ico|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public|manifest.json|apple-touch-icon).*)",
   ],
 }

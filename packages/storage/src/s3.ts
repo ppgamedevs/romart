@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { StorageConfig, StorageClient, PresignPostParams, PresignPostResult, SignedUrlResult, PutParams } from "./types"
@@ -121,5 +121,32 @@ export class S3StorageClient implements StorageClient {
     // For S3, the upload is already finalized when the presigned POST is used
     // This method exists for compatibility with other providers
     return Promise.resolve()
+  }
+
+  async getObjectStream(key: string, bucket: string): Promise<NodeJS.ReadableStream> {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    })
+
+    const response = await this.client.send(command)
+    
+    if (!response.Body) {
+      throw new Error("Object body is empty")
+    }
+
+    return response.Body as NodeJS.ReadableStream
+  }
+
+  async getSignedDownloadUrl(key: string, bucket: string, expiresIn: number = 3600): Promise<SignedUrlResult> {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    })
+
+    const url = await getSignedUrl(this.client, command, { expiresIn })
+    const expiresAt = new Date(Date.now() + expiresIn * 1000)
+
+    return { url, expiresAt }
   }
 }

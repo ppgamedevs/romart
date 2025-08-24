@@ -1,9 +1,9 @@
-import { auth } from "@/auth/config"
+import { getAuthSession } from "@/auth/utils"
 import { redirect } from "next/navigation"
 import { prisma } from "@artfromromania/db"
 
 export default async function OnboardingPage() {
-  const session = await auth()
+  const session = await getAuthSession()
   
   if (!session?.user) {
     redirect("/sign-in")

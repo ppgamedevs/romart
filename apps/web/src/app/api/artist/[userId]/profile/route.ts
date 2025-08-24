@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
+  const { userId } = await params;
   try {
     const session = await auth()
     
@@ -14,12 +15,12 @@ export async function GET(
     }
 
     // Only allow users to access their own profile
-    if (session.user.id !== params.userId) {
+    if (session.user.id !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const artist = await prisma.artist.findUnique({
-      where: { userId: params.userId },
+      where: { userId: userId },
       select: {
         displayName: true,
         slug: true,
@@ -29,12 +30,7 @@ export async function GET(
         locationCountry: true,
         avatarUrl: true,
         coverUrl: true,
-        website: true,
-        instagram: true,
-        facebook: true,
-        x: true,
-        tiktok: true,
-        youtube: true,
+        socials: true,
         education: true,
         exhibitions: true,
         awards: true,

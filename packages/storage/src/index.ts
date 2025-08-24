@@ -36,6 +36,8 @@ export function generateImageKey(scope: string, entityId: string, cuid: string, 
       return `public/artwork/${entityId}/orig/${cuid}.${extension}`
     case "KYC_DOC":
       return `private/kyc/${entityId}/${cuid}.${extension}`
+    case "DIGITAL_FILE":
+      return `private/digital/${entityId}/${cuid}.${extension}`
     default:
       throw new Error(`Unknown scope: ${scope}`)
   }
@@ -49,7 +51,7 @@ export function generateVariantKey(originalKey: string, variant: string): string
 export function getBucketForScope(scope: string, isPrivate: boolean = false): string {
   const config = getStorageConfig()
   
-  if (scope === "KYC_DOC" || isPrivate) {
+  if (scope === "KYC_DOC" || scope === "DIGITAL_FILE" || isPrivate) {
     return config.privateBucket
   }
   

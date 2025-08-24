@@ -1,0 +1,10 @@
+{
+  "name": "RomArt - Romanian Art Marketplace",
+  "short_name": "RomArt",
+  "description": "Discover and collect authentic Romanian art from talented artists",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": []
+}

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { ClientProviders } from "@/components/providers/ClientProviders";
+import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 
 const inter = Inter({ 
 	subsets: ["latin"],
@@ -98,9 +99,11 @@ export default async function RootLayout({
 				{/* <link rel="preconnect" href="https://your-cdn.com" /> */}
 			</head>
 			<body className="min-h-screen bg-background font-sans antialiased">
-				<TooltipProvider>
-					{children}
-				</TooltipProvider>
+				<ErrorBoundary>
+					<ClientProviders>
+						{children}
+					</ClientProviders>
+				</ErrorBoundary>
 			</body>
 		</html>
 	);

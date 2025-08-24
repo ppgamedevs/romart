@@ -1,0 +1,24 @@
+{
+  "name": "@artfromromania/search",
+  "version": "0.1.0",
+  "description": "Search functionality for RomArt using Meilisearch",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "meilisearch": "^0.46.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.20.4",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@artfromromania/db": "workspace:*"
+  }
+}

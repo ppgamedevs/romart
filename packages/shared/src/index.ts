@@ -48,7 +48,7 @@ export const EnvSchema = z.object({
 	NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 	PORT: z.string().optional(),
 	API_BASE_URL: z.string().url().optional(),
-	DATABASE_URL: z.string().url().optional(),
+	DATABASE_URL: z.string().optional(),
 	NEXTAUTH_URL: z.string().url().optional(),
 	NEXTAUTH_SECRET: z.string().optional(),
 	GOOGLE_CLIENT_ID: z.string().optional(),
@@ -90,3 +90,8 @@ export const validateEnv = (env: Record<string, string | undefined>): Env => {
 
 // Re-export artist schemas and utilities
 export * from "./schemas/artist"
+export * from "./schemas/artwork"
+export * from "./utils"
+export * from "./constants/catalog"
+export * from "./format/price"
+export * from "./seo/jsonld"

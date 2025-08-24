@@ -56,6 +56,8 @@ export interface StorageClient {
   getSignedUrl(key: string, bucket: string, expiresIn?: number): Promise<SignedUrlResult>
   getPublicUrl(key: string): string
   headObject(key: string, bucket: string): Promise<{ exists: boolean; size?: number; contentType?: string }>
+  getObjectStream(key: string, bucket: string): Promise<NodeJS.ReadableStream>
+  getSignedDownloadUrl(key: string, bucket: string, expiresIn?: number): Promise<SignedUrlResult>
 }
 
 export type ImageScope = "ARTIST_AVATAR" | "ARTIST_COVER" | "ARTWORK_IMAGE" | "KYC_DOC"

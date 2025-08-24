@@ -4,7 +4,22 @@ const nextConfig: NextConfig = {
 	experimental: {
 		optimizePackageImports: ["@artfromromania/shared"]
 	},
+	// Suppress hydration warnings in development (often caused by browser extensions)
+	reactStrictMode: true,
 	outputFileTracingRoot: process.cwd(),
+	webpack: (config, { isServer }) => {
+		if (!isServer) {
+			// Don't bundle node:crypto on the client side
+			config.resolve.fallback = {
+				...config.resolve.fallback,
+				crypto: false,
+				fs: false,
+				path: false,
+				os: false,
+			}
+		}
+		return config
+	},
 	images: {
 		remotePatterns: [
 			{

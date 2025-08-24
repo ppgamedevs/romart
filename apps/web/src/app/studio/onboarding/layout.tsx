@@ -1,4 +1,4 @@
-import { auth } from "@/auth/config"
+import { getAuthSession } from "@/auth/utils"
 import { redirect } from "next/navigation"
 import { prisma } from "@artfromromania/db"
 import { Progress } from "@/components/ui/progress"
@@ -20,7 +20,7 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
+  const session = await getAuthSession()
   
   if (!session?.user) {
     redirect("/sign-in")

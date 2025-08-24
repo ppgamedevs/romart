@@ -1,41 +1,29 @@
 import { FastifyInstance } from "fastify"
 import { z } from "zod"
-import { cuid } from "cuid"
+import cuid from "cuid"
 import { createRateLimiter } from "@artfromromania/auth"
 import { prisma } from "@artfromromania/db"
 import { storage, generateImageKey, getBucketForScope } from "@artfromromania/storage"
 import { ImageScope } from "@artfromromania/storage"
 
-const presignSchema = {
-  type: "object",
-  properties: {
-    scope: { type: "string", enum: ["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"] },
-    entityId: { type: "string" },
-    contentType: { type: "string" },
-    size: { type: "number", minimum: 1 }
-  },
-  required: ["scope", "contentType", "size"]
-}
+const presignSchema = z.object({
+  scope: z.enum(["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"]),
+  entityId: z.string().optional(),
+  contentType: z.string(),
+  size: z.number().min(1)
+})
 
-const finalizeSchema = {
-  type: "object",
-  properties: {
-    scope: { type: "string", enum: ["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"] },
-    entityId: { type: "string" },
-    key: { type: "string" },
-    originalContentType: { type: "string" },
-    alt: { type: "string" }
-  },
-  required: ["scope", "entityId", "key", "originalContentType"]
-}
+const finalizeSchema = z.object({
+  scope: z.enum(["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"]),
+  entityId: z.string().optional(),
+  key: z.string(),
+  originalContentType: z.string(),
+  alt: z.string().optional()
+})
 
-const deleteSchema = {
-  type: "object",
-  properties: {
-    key: { type: "string" }
-  },
-  required: ["key"]
-}
+const deleteSchema = z.object({
+  key: z.string()
+})
 
 export async function uploadRoutes(fastify: FastifyInstance) {
   const uploadLimiter = createRateLimiter("upload", 60, 60)
@@ -43,7 +31,16 @@ export async function uploadRoutes(fastify: FastifyInstance) {
   // POST /uploads/presign
   fastify.post("/presign", {
     schema: {
-      body: presignSchema,
+      body: {
+        type: "object",
+        properties: {
+          scope: { type: "string", enum: ["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"] },
+          entityId: { type: "string" },
+          contentType: { type: "string" },
+          size: { type: "number", minimum: 1 }
+        },
+        required: ["scope", "contentType", "size"]
+      },
     },
     preHandler: async (request, reply) => {
       const clientIp = request.ip || "unknown"
@@ -54,7 +51,8 @@ export async function uploadRoutes(fastify: FastifyInstance) {
       }
     },
   }, async (request, reply) => {
-    const { scope, entityId, contentType, size } = request.body as z.infer<typeof presignSchema>
+    const body = presignSchema.parse(request.body)
+    const { scope, entityId, contentType, size } = body
     const user = request.user
 
     if (!user) {
@@ -118,7 +116,7 @@ export async function uploadRoutes(fastify: FastifyInstance) {
         bucket,
       }
     } catch (error) {
-      fastify.log.error("Failed to create presigned upload:", error)
+      fastify.log.error("Failed to create presigned upload:", error as any)
       return reply.status(500).send({ error: "Failed to create upload URL" })
     }
   })
@@ -126,7 +124,17 @@ export async function uploadRoutes(fastify: FastifyInstance) {
   // POST /media/finalize
   fastify.post("/finalize", {
     schema: {
-      body: finalizeSchema,
+      body: {
+        type: "object",
+        properties: {
+          scope: { type: "string", enum: ["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"] },
+          entityId: { type: "string" },
+          key: { type: "string" },
+          originalContentType: { type: "string" },
+          alt: { type: "string" }
+        },
+        required: ["scope", "entityId", "key", "originalContentType"]
+      },
     },
     preHandler: async (request, reply) => {
       const clientIp = request.ip || "unknown"
@@ -137,7 +145,8 @@ export async function uploadRoutes(fastify: FastifyInstance) {
       }
     },
   }, async (request, reply) => {
-    const { scope, entityId, key, originalContentType, alt } = request.body as z.infer<typeof finalizeSchema>
+    const body = finalizeSchema.parse(request.body)
+    const { scope, entityId, key, originalContentType, alt } = body
     const user = request.user
 
     if (!user) {
@@ -157,7 +166,7 @@ export async function uploadRoutes(fastify: FastifyInstance) {
       return reply.status(403).send({ error: "Artist profile not found" })
     }
 
-    if (scope === "KYC_DOC" && entityId !== artist.id) {
+    if (scope === "KYC_DOC" && entityId && entityId !== artist.id) {
       return reply.status(403).send({ error: "Can only finalize KYC docs for your own profile" })
     }
 
@@ -183,9 +192,9 @@ export async function uploadRoutes(fastify: FastifyInstance) {
           storageKey: key,
           contentType: originalContentType,
           sizeBytes: headResult.size,
-          alt: alt,
+          alt: alt || null,
           artistId: scope !== "ARTWORK_IMAGE" ? artist.id : undefined,
-          artworkId: scope === "ARTWORK_IMAGE" ? entityId : undefined,
+          artworkId: scope === "ARTWORK_IMAGE" && entityId ? entityId : undefined,
         }
       })
 
@@ -212,7 +221,7 @@ export async function uploadRoutes(fastify: FastifyInstance) {
         }
       }
     } catch (error) {
-      fastify.log.error("Failed to finalize upload:", error)
+      fastify.log.error("Failed to finalize upload:", error as any)
       return reply.status(500).send({ error: "Failed to finalize upload" })
     }
   })
@@ -220,7 +229,13 @@ export async function uploadRoutes(fastify: FastifyInstance) {
   // DELETE /media
   fastify.delete("/media", {
     schema: {
-      body: deleteSchema,
+      body: {
+        type: "object",
+        properties: {
+          key: { type: "string" }
+        },
+        required: ["key"]
+      },
     },
     preHandler: async (request, reply) => {
       const clientIp = request.ip || "unknown"
@@ -231,7 +246,8 @@ export async function uploadRoutes(fastify: FastifyInstance) {
       }
     },
   }, async (request, reply) => {
-    const { key } = request.body as z.infer<typeof deleteSchema>
+    const body = deleteSchema.parse(request.body)
+    const { key } = body
     const user = request.user
 
     if (!user) {
@@ -264,12 +280,12 @@ export async function uploadRoutes(fastify: FastifyInstance) {
       // Mark as deleted in database
       await prisma.image.update({
         where: { id: image.id },
-        data: { url: null, storageKey: null }
+        data: { url: null as any, storageKey: null as any }
       })
 
       return { ok: true }
     } catch (error) {
-      fastify.log.error("Failed to delete image:", error)
+      fastify.log.error("Failed to delete image:", error as any)
       return reply.status(500).send({ error: "Failed to delete image" })
     }
   })

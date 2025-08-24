@@ -113,4 +113,25 @@ export class SupabaseStorageClient implements StorageClient {
     // This method exists for compatibility
     return Promise.resolve()
   }
+
+  async getObjectStream(key: string, bucket: string): Promise<NodeJS.ReadableStream> {
+    const { data, error } = await this.client.storage
+      .from(bucket)
+      .download(key)
+
+    if (error) {
+      throw new Error(`Failed to download object: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error("Object data is empty")
+    }
+
+    // Convert Blob to ReadableStream
+    return data.stream() as unknown as NodeJS.ReadableStream
+  }
+
+  async getSignedDownloadUrl(key: string, bucket: string, expiresIn: number = 3600): Promise<SignedUrlResult> {
+    return this.getSignedUrl(key, bucket, expiresIn)
+  }
 }

@@ -14,9 +14,24 @@ const prisma = new PrismaClient({
 		}
 	}
 });
+
+// Declare Prisma on Fastify instance
+declare module "fastify" {
+	interface FastifyInstance {
+		prisma: PrismaClient;
+	}
+}
 import { authPlugin } from "./plugins/auth";
 import { createRateLimiter } from "@artfromromania/auth";
 import { uploadRoutes } from "./routes/uploads";
+import { adminRoutes } from "./routes/admin";
+import { stripeWebhookRoutes } from "./routes/stripeWebhook";
+import { paymentRoutes } from "./routes/payments";
+import { taxRoutes } from "./routes/tax";
+import { invoiceRoutes } from "./routes/invoices";
+import { studioRoutes } from "./routes/studio";
+import { downloadRoutes } from "./routes/downloads";
+import { ensureIndexes } from "@artfromromania/search";
 
 const fastify = Fastify({
 	logger: true
@@ -36,9 +51,19 @@ const start = async () => {
 		await fastify.register(cookie);
 		await fastify.register(authPlugin);
 
+		// Decorate with Prisma
+		fastify.decorate("prisma", prisma);
+
 		// Register routes
 		await fastify.register(uploadRoutes, { prefix: "/uploads" });
 		await fastify.register(uploadRoutes, { prefix: "/media" });
+		await fastify.register(adminRoutes);
+		await fastify.register(stripeWebhookRoutes);
+		await fastify.register(paymentRoutes);
+		await fastify.register(taxRoutes, { prefix: "/tax" });
+		await fastify.register(invoiceRoutes, { prefix: "/invoices" });
+		await fastify.register(studioRoutes, { prefix: "/studio" });
+		await fastify.register(downloadRoutes, { prefix: "/downloads" });
 
 		// Rate limiters
 		const apiRateLimiter = createRateLimiter("api", 60, 60); // 60 requests per minute
@@ -157,6 +182,15 @@ const start = async () => {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error";
 			console.log(`⚠️  Database connection failed: ${errorMessage}`);
 			console.log(`   Run 'pnpm db:up' to start PostgreSQL`);
+		}
+
+		// Initialize search indexes
+		try {
+			await ensureIndexes();
+			console.log(`🔍 Search indexes initialized successfully`);
+		} catch (error) {
+			console.log(`⚠️  Search indexes initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+			console.log(`   Make sure Meilisearch is running and configured`);
 		}
 	} catch (err) {
 		fastify.log.error(err);

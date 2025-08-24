@@ -19,12 +19,19 @@
 		"db:generate": "turbo run db:generate --filter=@artfromromania/db",
 		"db:reset": "turbo run db:reset --filter=@artfromromania/db",
 		"auth:typecheck:web": "turbo run typecheck --filter=@artfromromania/web",
-	"auth:dev:web": "turbo run dev --filter=@artfromromania/web",
-	"auth:dev:api": "turbo run dev --filter=@artfromromania/api",
-	"test:r2": "node scripts/test-r2-config.js",
-	"setup:r2": "node scripts/setup-r2.js"
+		"auth:dev:web": "turbo run dev --filter=@artfromromania/web",
+		"auth:dev:api": "turbo run dev --filter=@artfromromania/api",
+		"test:r2": "node scripts/test-r2-config.js",
+		"setup:r2": "node scripts/setup-r2.js",
+		"update:env": "node scripts/update-env.js",
+		"create:buckets": "node scripts/create-buckets.js",
+		"list:buckets": "node scripts/list-buckets.js",
+		"search:ensure": "pnpm --filter @artfromromania/search tsx src/indexes.ts",
+		"search:reindex": "pnpm --filter api tsx src/scripts/reindex.ts"
 	},
 	"devDependencies": {
+		"@aws-sdk/client-s3": "^3.540.0",
+		"dotenv": "^16.4.5",
 		"turbo": "^2.5.6"
 	},
 	"packageManager": "pnpm@10.4.0",
@@ -39,5 +46,10 @@
 		"*.{json,md,yml,yaml}": [
 			"prettier --write"
 		]
+	},
+	"dependencies": {
+		"@stripe/react-stripe-js": "^3.9.1",
+		"@stripe/stripe-js": "^7.8.0",
+		"stripe": "^18.4.0"
 	}
 }

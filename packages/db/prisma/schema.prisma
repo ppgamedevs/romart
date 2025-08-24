@@ -60,6 +60,11 @@ enum EditionType {
 	DIGITAL
 }
 
+enum PrintMaterial {
+	CANVAS
+	METAL
+}
+
 enum OrderStatus {
 	PENDING
 	PAID
@@ -108,6 +113,7 @@ model User {
 	auditLogs  AuditLog[]
 	accounts   Account[]
 	sessions   Session[]
+	digitalEntitlements DigitalEntitlement[]
 
 	@@map("users")
 }
@@ -164,6 +170,7 @@ model Artwork {
 	priceAmount    Int
 	priceCurrency  String            @default("EUR")
 	kind           ArtworkKind
+	publishedAt    DateTime?
 	createdAt      DateTime          @default(now())
 	updatedAt      DateTime          @updatedAt
 
@@ -172,6 +179,8 @@ model Artwork {
 	editions  Edition[]
 	images    Image[]
 	orderItems OrderItem[]
+	cartItems CartItem[]
+	hold      ArtworkHold?
 
 	@@index([artistId, status])
 	@@map("artworks")
@@ -187,12 +196,24 @@ model Edition {
 	unitAmount       Int
 	currency         String       @default("EUR")
 	downloadableUrl  String?
+	// NEW optional fields for prints:
+	material         PrintMaterial?
+	sizeName         String?       // e.g., "30x40 cm", "50x70 cm"
+	widthCm          Decimal?
+	heightCm         Decimal?
+	// NEW fields for digital delivery:
+	privateFileKey   String?       // storage key in private bucket
+	fileBytes        Int?          // file size in bytes
+	contentType      String?       // MIME type
+	checksumSha256   String?       // SHA256 hash for integrity
 	createdAt        DateTime     @default(now())
 	updatedAt        DateTime     @updatedAt
 
 	// Relations
 	artwork    Artwork     @relation(fields: [artworkId], references: [id], onDelete: Cascade)
 	orderItems OrderItem[]
+	cartItems  CartItem[]
+	entitlements DigitalEntitlement[]
 
 	@@map("editions")
 }
@@ -227,6 +248,9 @@ model Order {
 	buyerId            String
 	status             OrderStatus     @default(PENDING)
 	platformFeeBps     Int             @default(3000)
+	subtotalAmount     Int             @default(0)
+	taxAmount          Int             @default(0)
+	shippingAmount     Int             @default(0)
 	totalAmount        Int
 	currency           String          @default("EUR")
 	paymentProvider    PaymentProvider @default(TEST)
@@ -241,6 +265,8 @@ model Order {
 	items      OrderItem[]
 	shippingAddress Address? @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
 	billingAddress  Address? @relation("OrderBillingAddress", fields: [billingAddressId], references: [id])
+	invoice    Invoice?
+	digitalEntitlements DigitalEntitlement[]
 
 	@@index([buyerId, createdAt])
 	@@map("orders")
@@ -277,6 +303,8 @@ model Address {
 	region     String?
 	postalCode String?
 	country    String
+	isBusiness Boolean  @default(false)
+	vatId      String?
 	createdAt  DateTime @default(now())
 	updatedAt  DateTime @updatedAt
 
@@ -384,4 +412,125 @@ model KycVerification {
 
 	@@index([status, createdAt])
 	@@map("kyc_verifications")
+}
+
+model Cart {
+	id           String    @id @default(cuid())
+	userId       String?
+	anonymousId  String?   @unique
+	currency     String    @default("EUR")
+	createdAt    DateTime  @default(now())
+	updatedAt    DateTime  @updatedAt
+	items        CartItem[]
+	@@index([userId])
+	@@map("carts")
+}
+
+model CartItem {
+	id          String   @id @default(cuid())
+	cartId      String
+	artistId    String
+	kind        ArtworkKind     // ORIGINAL | EDITIONED | DIGITAL (reuse enum)
+	artworkId   String?
+	editionId   String?
+	quantity    Int
+	unitAmount  Int             // frozen price (minor units)
+	currency    String @default("EUR")
+	createdAt   DateTime @default(now())
+	cart        Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+	artwork     Artwork? @relation(fields: [artworkId], references: [id], onDelete: SetNull)
+	edition     Edition? @relation(fields: [editionId], references: [id], onDelete: SetNull)
+	@@index([cartId])
+	@@map("cart_items")
+}
+
+model ArtworkHold {
+	id         String   @id @default(cuid())
+	artworkId  String   @unique
+	orderId    String?
+	expiresAt  DateTime
+	createdAt  DateTime @default(now())
+	artwork    Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+	@@map("artwork_holds")
+}
+
+model DigitalEntitlement {
+	id              String   @id @default(cuid())
+	orderId         String
+	userId          String
+	editionId       String
+	token           String   @unique           // token persistent pe care îl putem roti
+	maxDownloads    Int      @default(5)
+	downloadsCount  Int      @default(0)
+	expiresAt       DateTime?
+	lastDownloadedAt DateTime?
+	createdAt       DateTime @default(now())
+	
+	// Relations
+	order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+	edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+	
+	@@index([userId, createdAt])
+	@@map("digital_entitlements")
+}
+
+model Invoice {
+	id             String   @id @default(cuid())
+	orderId        String   @unique
+	number         String   @unique
+	series         String
+	issuedAt       DateTime @default(now())
+	currency       String   @default("EUR")
+	sellerName     String
+	sellerVatId    String?
+	sellerRegNo    String?
+	sellerAddress  Json
+	buyerName      String
+	buyerVatId     String?
+	buyerAddress   Json
+	subtotalAmount Int
+	taxAmount      Int
+	shippingAmount Int
+	totalAmount    Int
+	notes          String?
+	pdfStorageKey  String?
+	createdAt      DateTime @default(now())
+	order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	items          InvoiceItem[]
+	@@map("invoices")
+}
+
+model InvoiceItem {
+	id            String  @id @default(cuid())
+	invoiceId     String
+	description   String
+	quantity      Int
+	unitAmount    Int      // minor units
+	taxRate       Decimal? // ex: 0.19 (19%)
+	taxAmount     Int
+	totalAmount   Int      // unit*qty + tax
+	invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+	@@map("invoice_items")
+}
+
+model VatValidationCache {
+	id         String   @id @default(cuid())
+	country    String
+	vatId      String
+	valid      Boolean
+	name       String?
+	address    String?
+	checkedAt  DateTime @default(now())
+	@@unique([country, vatId])
+	@@map("vat_validation_cache")
+}
+
+model InvoiceCounter {
+	id       String  @id @default(cuid())
+	series   String
+	year     Int
+	nextNo   Int
+	@@unique([series, year])
+	@@map("invoice_counters")
 }
