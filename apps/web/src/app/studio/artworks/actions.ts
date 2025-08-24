@@ -14,6 +14,7 @@ import {
   generateUniqueSlug,
   suggestPrintEditionsFromOriginal
 } from "@artfromromania/shared"
+import { createArtworkModerationItem } from "@/lib/moderation"
 import { ArtworkStatus, ArtworkKind, EditionType } from "@prisma/client"
 
 // Simple rate limiter (temporary)
@@ -349,6 +350,14 @@ export async function publishArtwork(artworkId: string) {
       publishedAt: new Date(),
     }
   })
+
+  // Create moderation item for the artwork
+  try {
+    await createArtworkModerationItem(artworkId);
+  } catch (error) {
+    console.error("Failed to create moderation item:", error);
+    // Don't fail the publish if moderation fails
+  }
 
   revalidatePath("/studio/artworks")
   revalidatePath(`/artist/${artist.displayName}`)

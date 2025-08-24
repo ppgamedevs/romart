@@ -57,3 +57,36 @@ export function getBucketForScope(scope: string, isPrivate: boolean = false): st
   
   return config.publicBucket
 }
+
+// Utility functions for private storage
+export async function uploadToPrivateStorage(key: string, buffer: Buffer, contentType: string): Promise<void> {
+  const config = getStorageConfig()
+  // For direct uploads, we'll use a different approach
+  // This is a simplified version - in production you might want to use presignUpload
+  const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3")
+  
+  const client = new S3Client({
+    region: config.region,
+    endpoint: config.endpoint,
+    credentials: {
+      accessKeyId: config.accessKeyId!,
+      secretAccessKey: config.secretAccessKey!,
+    },
+    forcePathStyle: config.forcePathStyle,
+  })
+  
+  const command = new PutObjectCommand({
+    Bucket: config.privateBucket,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+  })
+  
+  await client.send(command)
+}
+
+export async function getSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  const config = getStorageConfig()
+  const result = await storage.getSignedUrl(key, config.privateBucket, expiresIn)
+  return result.url
+}

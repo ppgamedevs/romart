@@ -1,10 +1,14 @@
 import { MeiliSearch } from "meilisearch";
-import { meiliEnv } from "./env";
+import { meiliEnv, isMeilisearchAvailable } from "./env";
 
 let adminClient: MeiliSearch | null = null;
 let searchClient: MeiliSearch | null = null;
 
 export function getAdminClient(): MeiliSearch {
+  if (!isMeilisearchAvailable()) {
+    throw new Error("Meilisearch is not available. Please check your environment variables.");
+  }
+
   if (!meiliEnv.MEILI_MASTER_KEY) {
     throw new Error("MEILI_MASTER_KEY is required for admin operations");
   }
@@ -20,6 +24,10 @@ export function getAdminClient(): MeiliSearch {
 }
 
 export function getSearchClient(): MeiliSearch {
+  if (!isMeilisearchAvailable()) {
+    throw new Error("Meilisearch is not available. Please check your environment variables.");
+  }
+
   if (!searchClient) {
     const apiKey = meiliEnv.MEILI_SEARCH_KEY || meiliEnv.MEILI_MASTER_KEY;
     

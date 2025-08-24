@@ -15,6 +15,10 @@ export type SearchArtworkDoc = {
   image?: string;         // primary image (LG)
   publishedAt: number;    // epoch ms
   popularity?: number;    // default 0 (future: views/saves)
+  // Moderation fields
+  moderationStatus: "PENDING" | "APPROVED" | "REJECTED" | "MATURE";
+  contentRating: "SAFE" | "MATURE" | "PROHIBITED";
+  flaggedCount: number;
 };
 
 export interface SearchFilters {

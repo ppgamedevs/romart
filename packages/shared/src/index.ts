@@ -95,3 +95,7 @@ export * from "./utils"
 export * from "./constants/catalog"
 export * from "./format/price"
 export * from "./seo/jsonld"
+
+// Re-export trust and moderation
+export * from "./trust/policies"
+export * from "./moderation/constants"

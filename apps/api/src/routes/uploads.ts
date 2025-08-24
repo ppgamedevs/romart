@@ -5,6 +5,8 @@ import { createRateLimiter } from "@artfromromania/auth"
 import { prisma } from "@artfromromania/db"
 import { storage, generateImageKey, getBucketForScope } from "@artfromromania/storage"
 import { ImageScope } from "@artfromromania/storage"
+import { logAudit } from "../moderation/service"
+import { AUDIT_ACTIONS } from "@artfromromania/shared"
 
 const presignSchema = z.object({
   scope: z.enum(["ARTIST_AVATAR", "ARTIST_COVER", "ARTWORK_IMAGE", "KYC_DOC"]),
@@ -26,7 +28,11 @@ const deleteSchema = z.object({
 })
 
 export async function uploadRoutes(fastify: FastifyInstance) {
-  const uploadLimiter = createRateLimiter("upload", 60, 60)
+  const uploadLimiter = createRateLimiter(
+    "upload", 
+    parseInt(process.env.UPLOAD_MAX_PER_HOUR || "120"), 
+    3600
+  )
 
   // POST /uploads/presign
   fastify.post("/presign", {
@@ -210,6 +216,23 @@ export async function uploadRoutes(fastify: FastifyInstance) {
           data: { coverUrl: imageUrl }
         })
       }
+
+      // Log audit
+      await logAudit({
+        actorId: user.id,
+        action: AUDIT_ACTIONS.UPLOAD_IMAGE,
+        entityType: scope === "ARTWORK_IMAGE" ? "ARTWORK" : "ARTIST",
+        entityId: scope === "ARTWORK_IMAGE" ? entityId : artist.id,
+        ip: request.ip,
+        userAgent: request.headers["user-agent"],
+        data: {
+          imageId: image.id,
+          scope,
+          key,
+          size: headResult.size,
+          contentType: originalContentType
+        }
+      });
 
       return {
         ok: true,

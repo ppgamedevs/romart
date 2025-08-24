@@ -89,12 +89,44 @@ enum PayoutStatus {
 	PENDING
 	PAID
 	FAILED
+	REVERSED
 }
 
 enum PayoutProvider {
 	STRIPE
 	MANUAL
 	TEST
+}
+
+enum FulfillmentStatus {
+	DRAFT
+	SUBMITTED
+	IN_PRODUCTION
+	SHIPPED
+	DELIVERED
+	CANCELLED
+	FAILED
+}
+
+enum ModerationStatus {
+	PENDING
+	APPROVED
+	REJECTED
+	MATURE
+}
+
+enum ContentRating {
+	SAFE
+	MATURE
+	PROHIBITED
+}
+
+enum ShipmentStatus {
+	READY_TO_SHIP
+	LABEL_PURCHASED
+	IN_TRANSIT
+	DELIVERED
+	CANCELLED
 }
 
 model User {
@@ -137,6 +169,16 @@ model Artist {
 	completionScore Int      @default(0)
 	slugLockedAt    DateTime?
 	kycStatus       KycStatus @default(PENDING)
+	// NEW Stripe Connect fields:
+	stripeAccountId      String?   @unique
+	payoutsEnabled       Boolean   @default(false)
+	connectStatus        String?   // e.g., "onboarding_required" | "complete" | "restricted"
+	connectRequirements  Json?
+	// Moderation fields
+	banned          Boolean @default(false)
+	banReason       String?
+	shadowbanned    Boolean @default(false)
+	trustScore      Int     @default(50)
 	createdAt       DateTime @default(now())
 	updatedAt       DateTime @updatedAt
 
@@ -171,6 +213,12 @@ model Artwork {
 	priceCurrency  String            @default("EUR")
 	kind           ArtworkKind
 	publishedAt    DateTime?
+	// Moderation fields
+	moderationStatus ModerationStatus @default(PENDING)
+	contentRating    ContentRating    @default(SAFE)
+	flaggedCount     Int              @default(0)
+	lastReviewedAt   DateTime?
+	suppressed       Boolean          @default(false)
 	createdAt      DateTime          @default(now())
 	updatedAt      DateTime          @updatedAt
 
@@ -183,6 +231,7 @@ model Artwork {
 	hold      ArtworkHold?
 
 	@@index([artistId, status])
+	@@index([moderationStatus, suppressed, contentRating])
 	@@map("artworks")
 }
 
@@ -232,6 +281,7 @@ model Image {
 	contentType  String?
 	sizeBytes    Int?
 	variantMeta  Json?
+	isPrintMaster Boolean  @default(false)
 	createdAt    DateTime  @default(now())
 
 	// Relations
@@ -257,6 +307,9 @@ model Order {
 	providerIntentId   String?
 	shippingAddressId  String?
 	billingAddressId   String?
+	// Shipping fields
+	shippingMethod     String?         // "STANDARD" | "EXPRESS"
+	shippingServiceName String?        // ex: "DHL Paket Intl"
 	createdAt          DateTime        @default(now())
 	updatedAt          DateTime        @updatedAt
 
@@ -267,6 +320,8 @@ model Order {
 	billingAddress  Address? @relation("OrderBillingAddress", fields: [billingAddressId], references: [id])
 	invoice    Invoice?
 	digitalEntitlements DigitalEntitlement[]
+	fulfillmentOrders FulfillmentOrder[]
+	shipments  Shipment[]
 
 	@@index([buyerId, createdAt])
 	@@map("orders")
@@ -290,6 +345,7 @@ model OrderItem {
 	artwork Artwork? @relation(fields: [artworkId], references: [id], onDelete: SetNull)
 	edition Edition? @relation(fields: [editionId], references: [id], onDelete: SetNull)
 	payouts Payout[]
+	fulfillmentItems FulfillmentItem[]
 
 	@@map("order_items")
 }
@@ -325,6 +381,7 @@ model Payout {
 	status             PayoutStatus   @default(PENDING)
 	provider           PayoutProvider @default(TEST)
 	providerTransferId String?
+	availableAt        DateTime?      // when payout becomes available (for delayed payouts)
 	createdAt          DateTime       @default(now())
 	updatedAt          DateTime       @updatedAt
 
@@ -338,16 +395,20 @@ model Payout {
 
 model AuditLog {
 	id         String   @id @default(cuid())
-	actorUserId String?
+	actorId    String?
 	action     String
-	entity     String
-	entityId   String
-	metadata   Json?
+	entityType String?
+	entityId   String?
+	ip         String?
+	userAgent  String?
+	data       Json?
 	createdAt  DateTime @default(now())
 
 	// Relations
-	actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+	actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
+	@@index([actorId, action, createdAt])
+	@@index([entityType, entityId, createdAt])
 	@@map("audit_logs")
 }
 
@@ -534,3 +595,142 @@ model InvoiceCounter {
 	@@unique([series, year])
 	@@map("invoice_counters")
 }
+
+model FulfillmentOrder {
+	id               String            @id @default(cuid())
+	orderId          String
+	provider         String            // "INHOUSE"
+	providerOrderId  String?
+	status           FulfillmentStatus @default(DRAFT)
+	shippingMethod   String?
+	costAmount       Int               @default(0)   // cost intern opțional
+	currency         String            @default("EUR")
+	trackingNumbers  Json?
+	rawPayload       Json?
+	assignedToUserId String?
+	startedAt        DateTime?
+	finishedAt       DateTime?
+	qcPassedAt       DateTime?
+	labelsStorageKey String?
+	jobTicketKey     String?
+	createdAt        DateTime          @default(now())
+	updatedAt        DateTime          @updatedAt
+	
+	// Relations
+	order   Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	items   FulfillmentItem[]
+	
+	@@index([orderId, status])
+	@@map("fulfillment_orders")
+}
+
+model FulfillmentItem {
+	id             String   @id @default(cuid())
+	fulfillmentId  String
+	orderItemId    String
+	editionId      String?
+	quantity       Int
+	material       String?  // "CANVAS" | "METAL"
+	sizeName       String?
+	widthCm        Decimal?
+	heightCm       Decimal?
+	sourceImageKey String?
+	providerSku    String?
+	
+	// Relations
+	fulfillment FulfillmentOrder @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+	orderItem   OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+	
+	@@map("fulfillment_items")
+}
+
+model ModerationItem {
+	id           String           @id @default(cuid())
+	entityType   String           // "ARTWORK" | "ARTIST" | "IMAGE"
+	entityId     String
+	status       ModerationStatus @default(PENDING)
+	reason       String?
+	autoSignals  Json?            // results from classifier (scores)
+	reviewerId   String?
+	createdAt    DateTime         @default(now())
+	updatedAt    DateTime         @updatedAt
+
+	// Relations
+	actions ModerationAction[]
+
+	@@index([entityType, status, createdAt])
+	@@map("moderation_items")
+}
+
+model ModerationAction {
+	id         String   @id @default(cuid())
+	itemId     String
+	actorId    String
+	action     String   // "APPROVE" | "REJECT" | "MARK_MATURE" | "BAN" | "UNBAN" | "SHADOWBAN" | "UNSHADOWBAN"
+	notes      String?
+	createdAt  DateTime @default(now())
+
+	// Relations
+	item ModerationItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+	@@map("moderation_actions")
+}
+
+model Report {
+	id          String   @id @default(cuid())
+	reporterId  String?
+	entityType  String   // "ARTWORK" | "ARTIST"
+	entityId    String
+	category    String   // "nudity" | "hate" | "copyright" | "spam" | "other"
+	message     String?
+	status      String   @default("OPEN") // OPEN | CLOSED | MERGED
+	createdAt   DateTime @default(now())
+	closedAt    DateTime?
+
+	@@index([entityType, entityId, status, createdAt])
+	@@map("reports")
+}
+
+model Shipment {
+	id              String         @id @default(cuid())
+	orderId         String
+	method          String         // "STANDARD" | "EXPRESS"
+	provider        String         // "INHOUSE" | "SHIPPO" | "EASYPOST"
+	serviceName     String?        // ex: "DHL Paket Intl"
+	zone            String?
+	insuredAmount   Int            @default(0)
+	currency        String         @default("EUR")
+	status          ShipmentStatus @default(READY_TO_SHIP)
+	labelStorageKey String?
+	trackingNumbers Json?
+	createdAt       DateTime       @default(now())
+	updatedAt       DateTime       @updatedAt
+
+	// Relations
+	order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	packages  ShipmentPackage[]
+
+	@@index([orderId, status])
+	@@map("shipments")
+}
+
+model ShipmentPackage {
+	id           String   @id @default(cuid())
+	shipmentId   String
+	kind         String   // "BOX" | "TUBE"
+	refId        String?  // BX_M / TB_L etc.
+	lengthCm     Decimal
+	widthCm      Decimal?
+	heightCm     Decimal?
+	diameterCm   Decimal?
+	weightKg     Decimal
+	dimWeightKg  Decimal
+	items        Json     // [{orderItemId, qty, artworkId}]
+	
+	// Relations
+	shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+	@@map("shipment_packages")
+}
+
+

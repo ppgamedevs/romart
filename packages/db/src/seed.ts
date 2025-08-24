@@ -316,11 +316,11 @@ async function main() {
 	await prisma.auditLog.createMany({
 		data: [
 			{
-				actorUserId: adminUser.id,
+				actorId: adminUser.id,
 				action: "SEED_DATA_CREATED",
-				entity: "Database",
+				entityType: "Database",
 				entityId: "seed",
-				metadata: {
+				data: {
 					usersCreated: 3,
 					artworksCreated: 3,
 					ordersCreated: 1,

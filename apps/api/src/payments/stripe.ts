@@ -1,6 +1,20 @@
 import Stripe from "stripe";
 import { prisma } from "@artfromromania/db";
 import { z } from "zod";
+import { 
+  createTransferToArtist, 
+  calculateArtistShare, 
+  getPayoutDelayDays 
+} from "./connect";
+import { 
+  createPayout, 
+  updatePayoutStatus, 
+  getPayoutsByOrderId 
+} from "@artfromromania/db";
+import { 
+  quoteOriginal, 
+  type Packable 
+} from "@artfromromania/shipping";
 // Temporary tax implementation until package is properly built
 // import { 
 //   computeTaxForOrder, 
@@ -259,8 +273,86 @@ export async function createPaymentIntent(payload: CreatePaymentIntentPayload) {
     throw new Error(JSON.stringify(validationErrors));
   }
 
-  // Calculate shipping (0 for digital-only orders)
-  const shipping = hasDigitalOnly ? 0 : FLAT_SHIPPING_EUR;
+  // Calculate shipping
+  let shipping = 0;
+  let shippingMethod = null;
+  let shippingServiceName = null;
+  let originalShippingQuote = null;
+
+  if (!hasDigitalOnly) {
+    // Separate items by type
+    const printItems = cart.items.filter(item => item.kind === "EDITIONED");
+    const originalItems = cart.items.filter(item => item.kind === "ORIGINAL");
+    
+    // Calculate PoD shipping (from Prompt 14)
+    let podShipping = 0;
+    if (printItems.length > 0) {
+      // TODO: Integrate with PoD shipping from Prompt 14
+      // For now, use flat rate
+      podShipping = FLAT_SHIPPING_EUR;
+    }
+    
+    // Calculate Original shipping
+    if (originalItems.length > 0 && shippingAddress) {
+      try {
+        // Prepare packable items for shipping calculation
+        const packableItems: Packable[] = originalItems.map(item => {
+          if (!item.artwork) {
+            throw new Error(`Artwork not found for item ${item.id}`);
+          }
+          
+          return {
+            orderItemId: item.id,
+            kind: "ORIGINAL",
+            qty: item.quantity,
+            widthCm: item.artwork.widthCm?.toNumber() || 0,
+            heightCm: item.artwork.heightCm?.toNumber() || 0,
+            depthCm: item.artwork.depthCm?.toNumber() || 0,
+            framed: item.artwork.framed,
+            weightKg: undefined, // Will be estimated by packer
+            preferred: item.artwork.framed ? "BOX" : "TUBE",
+            unitAmount: item.artwork.priceAmount
+          };
+        });
+        
+        // Get shipping quote
+        originalShippingQuote = await quoteOriginal({
+          items: packableItems,
+          shipTo: {
+            country: shippingAddress.country,
+            postcode: shippingAddress.postalCode,
+            city: shippingAddress.city,
+            state: shippingAddress.region
+          }
+        });
+        
+        // Use STANDARD method by default
+        const standardOption = originalShippingQuote.options.find(opt => opt.method === "STANDARD");
+        if (standardOption) {
+          shippingMethod = "STANDARD";
+          shippingServiceName = standardOption.serviceName;
+          shipping = podShipping + standardOption.amount;
+        } else {
+          // Fallback to EXPRESS if STANDARD not available
+          const expressOption = originalShippingQuote.options.find(opt => opt.method === "EXPRESS");
+          if (expressOption) {
+            shippingMethod = "EXPRESS";
+            shippingServiceName = expressOption.serviceName;
+            shipping = podShipping + expressOption.amount;
+          } else {
+            throw new Error("No shipping options available");
+          }
+        }
+      } catch (error) {
+        console.error("Shipping calculation failed:", error);
+        // Fallback to flat shipping
+        shipping = FLAT_SHIPPING_EUR;
+      }
+    } else {
+      // Fallback to flat shipping
+      shipping = FLAT_SHIPPING_EUR;
+    }
+  }
 
   // Calculate tax
   const originCountry = process.env.ORIGIN_COUNTRY || "RO";
@@ -374,7 +466,9 @@ export async function createPaymentIntent(payload: CreatePaymentIntentPayload) {
       currency: cart.currency,
       paymentProvider: "STRIPE",
       shippingAddressId,
-      billingAddressId
+      billingAddressId,
+      shippingMethod,
+      shippingServiceName
     }
   });
 
@@ -569,6 +663,26 @@ export async function handlePaymentSuccess(paymentIntentId: string) {
     // Don't fail the payment if invoice generation fails
   }
 
+  // Process payouts to artists
+  await processArtistPayouts(order);
+
+  // Process fulfillment for PRINT items
+  try {
+    const { processFulfillmentForOrder } = await import("../fulfillment/service");
+    await processFulfillmentForOrder(order.id);
+  } catch (error) {
+    console.error("Failed to process fulfillment:", error);
+    // Don't fail the payment if fulfillment processing fails
+  }
+
+  // Create shipments for ORIGINAL items
+  try {
+    await createShipmentsForOrder(order);
+  } catch (error) {
+    console.error("Failed to create shipments:", error);
+    // Don't fail the payment if shipment creation fails
+  }
+
   // Clear cart if user has one
   if (order.buyerId !== "anonymous") {
     await prisma.cartItem.deleteMany({
@@ -581,6 +695,171 @@ export async function handlePaymentSuccess(paymentIntentId: string) {
   }
 
   return order;
+}
+
+async function createShipmentsForOrder(order: any) {
+  // Get original items from the order
+  const originalItems = order.items.filter((item: any) => item.kind === "ORIGINAL");
+  
+  if (originalItems.length === 0) {
+    return; // No original items to ship
+  }
+
+  // Get shipping address
+  if (!order.shippingAddress) {
+    console.warn("No shipping address for order", order.id);
+    return;
+  }
+
+  try {
+    // Prepare packable items for shipping calculation
+    const packableItems: Packable[] = originalItems.map((item: any) => {
+      if (!item.artwork) {
+        throw new Error(`Artwork not found for item ${item.id}`);
+      }
+      
+      return {
+        orderItemId: item.id,
+        kind: "ORIGINAL",
+        qty: item.quantity,
+        widthCm: item.artwork.widthCm?.toNumber() || 0,
+        heightCm: item.artwork.heightCm?.toNumber() || 0,
+        depthCm: item.artwork.depthCm?.toNumber() || 0,
+        framed: item.artwork.framed,
+        weightKg: undefined, // Will be estimated by packer
+        preferred: item.artwork.framed ? "BOX" : "TUBE",
+        unitAmount: item.artwork.priceAmount
+      };
+    });
+
+    // Get shipping quote (idempotent - same result as during checkout)
+    const shippingQuote = await quoteOriginal({
+      items: packableItems,
+      shipTo: {
+        country: order.shippingAddress.country,
+        postcode: order.shippingAddress.postalCode,
+        city: order.shippingAddress.city,
+        state: order.shippingAddress.region
+      }
+    });
+
+    // Calculate insured amount
+    const insuredAmount = Math.min(
+      order.totalAmount,
+      originalItems.reduce((sum: number, item: any) => sum + (item.artwork?.priceAmount || 0), 0)
+    );
+
+    // Create shipment
+    const shipment = await prisma.shipment.create({
+      data: {
+        orderId: order.id,
+        method: order.shippingMethod || "STANDARD",
+        provider: process.env.SHIP_PROVIDER || "INHOUSE",
+        serviceName: order.shippingServiceName,
+        zone: shippingQuote.options[0]?.breakdown ? "calculated" : undefined,
+        insuredAmount,
+        currency: "EUR",
+        status: "READY_TO_SHIP"
+      }
+    });
+
+    // Create shipment packages
+    for (const pkg of shippingQuote.packed) {
+      await prisma.shipmentPackage.create({
+        data: {
+          shipmentId: shipment.id,
+          kind: pkg.kind,
+          refId: pkg.refId,
+          lengthCm: pkg.lengthCm,
+          widthCm: pkg.widthCm,
+          heightCm: pkg.heightCm,
+          diameterCm: pkg.diameterCm,
+          weightKg: pkg.weightKg,
+          dimWeightKg: pkg.dimWeightKg,
+          items: pkg.items
+        }
+      });
+    }
+
+    console.log(`Created shipment ${shipment.id} with ${shippingQuote.packed.length} packages for order ${order.id}`);
+  } catch (error) {
+    console.error("Failed to create shipments for order", order.id, error);
+    throw error;
+  }
+}
+
+async function processArtistPayouts(order: any) {
+  // Group items by artist and calculate payouts
+  const artistPayouts = new Map<string, { amount: number; items: any[] }>();
+
+  for (const item of order.items) {
+    const artistId = item.artistId;
+    const subtotal = item.subtotal;
+    const artistShare = calculateArtistShare(subtotal, order.platformFeeBps);
+
+    if (!artistPayouts.has(artistId)) {
+      artistPayouts.set(artistId, { amount: 0, items: [] });
+    }
+
+    const payout = artistPayouts.get(artistId)!;
+    payout.amount += artistShare;
+    payout.items.push(item);
+  }
+
+  // Process payouts for each artist
+  for (const [artistId, payout] of artistPayouts) {
+    const payoutDelayDays = getPayoutDelayDays();
+    const availableAt = payoutDelayDays > 0 
+      ? new Date(Date.now() + payoutDelayDays * 24 * 60 * 60 * 1000)
+      : undefined;
+
+    // Create payout records for each item
+    for (const item of payout.items) {
+      const artistShare = calculateArtistShare(item.subtotal, order.platformFeeBps);
+      
+      await createPayout(prisma, {
+        artistId,
+        orderItemId: item.id,
+        amount: artistShare,
+        currency: order.currency,
+        availableAt,
+      });
+    }
+
+    // If no delay, process transfer immediately
+    if (payoutDelayDays === 0) {
+      try {
+        const transfer = await createTransferToArtist(
+          artistId,
+          payout.amount,
+          order.currency,
+          order.id,
+          `RomArt order ${order.id}`
+        );
+
+        // Update payout records with transfer ID
+        for (const item of payout.items) {
+          const artistShare = calculateArtistShare(item.subtotal, order.platformFeeBps);
+          
+          await updatePayoutStatus(
+            prisma,
+            (await prisma.payout.findFirst({
+              where: {
+                artistId,
+                orderItemId: item.id,
+                amount: artistShare,
+              }
+            }))!.id,
+            "PAID",
+            transfer.id
+          );
+        }
+      } catch (error) {
+        console.error(`Failed to create transfer for artist ${artistId}:`, error);
+        // Payouts remain PENDING and will be retried later
+      }
+    }
+  }
 }
 
 export async function handlePaymentFailure(paymentIntentId: string) {

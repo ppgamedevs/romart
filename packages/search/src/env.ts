@@ -15,3 +15,8 @@ export const meiliEnv = MeiliEnvSchema.parse({
 });
 
 export type MeiliEnv = z.infer<typeof MeiliEnvSchema>;
+
+// Check if Meilisearch is available
+export function isMeilisearchAvailable(): boolean {
+  return !!(meiliEnv.MEILI_HOST && (meiliEnv.MEILI_SEARCH_KEY || meiliEnv.MEILI_MASTER_KEY));
+}

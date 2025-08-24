@@ -1,7 +1,13 @@
 import { getArtworksIndexAdmin } from "./client";
+import { isMeilisearchAvailable } from "./env";
 import type { SearchArtworkDoc } from "./types";
 
 export async function indexArtworks(docs: SearchArtworkDoc[]) {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping indexing");
+    return;
+  }
+
   try {
     const index = getArtworksIndexAdmin();
     await index.addDocuments(docs);
@@ -13,6 +19,11 @@ export async function indexArtworks(docs: SearchArtworkDoc[]) {
 }
 
 export async function indexOne(doc: SearchArtworkDoc) {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping indexing");
+    return;
+  }
+
   try {
     const index = getArtworksIndexAdmin();
     await index.addDocuments([doc]);
@@ -24,6 +35,11 @@ export async function indexOne(doc: SearchArtworkDoc) {
 }
 
 export async function updateOne(doc: SearchArtworkDoc) {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping update");
+    return;
+  }
+
   try {
     const index = getArtworksIndexAdmin();
     await index.updateDocuments([doc]);
@@ -35,6 +51,11 @@ export async function updateOne(doc: SearchArtworkDoc) {
 }
 
 export async function deleteOne(id: string) {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping deletion");
+    return;
+  }
+
   try {
     const index = getArtworksIndexAdmin();
     await index.deleteDocument(id);
@@ -46,6 +67,11 @@ export async function deleteOne(id: string) {
 }
 
 export async function reindexAll(fetcher: () => Promise<SearchArtworkDoc[]>) {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping reindex");
+    return 0;
+  }
+
   try {
     const index = getArtworksIndexAdmin();
     

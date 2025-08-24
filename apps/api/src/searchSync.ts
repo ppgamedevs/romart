@@ -11,6 +11,7 @@ export async function fetchArtworkForSearch(artworkId: string) {
           id: true,
           displayName: true,
           slug: true,
+          shadowbanned: true,
         },
       },
       images: {
@@ -45,7 +46,12 @@ export async function syncArtwork(artworkId: string) {
     if (artwork.status === "PUBLISHED" && artwork.publishedAt) {
       // Artwork is published, index it
       const searchDoc = toSearchDoc(artwork as any);
-      await indexOne(searchDoc);
+      if (searchDoc) {
+        await indexOne(searchDoc);
+      } else {
+        // Artwork was filtered out (rejected/suppressed), remove from index
+        await deleteOne(artworkId);
+      }
     } else {
       // Artwork is not published, remove from search index
       await deleteOne(artworkId);
@@ -70,6 +76,7 @@ export async function reindexAllArtworks(): Promise<number> {
               id: true,
               displayName: true,
               slug: true,
+              shadowbanned: true,
             },
           },
           images: {
@@ -90,7 +97,7 @@ export async function reindexAllArtworks(): Promise<number> {
         },
       });
 
-      return artworks.map((artwork) => toSearchDoc(artwork as any));
+      return artworks.map((artwork) => toSearchDoc(artwork as any)).filter((doc): doc is SearchArtworkDoc => doc !== null);
     };
 
     return await reindexAll(fetcher);

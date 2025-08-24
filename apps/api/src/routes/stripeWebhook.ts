@@ -1,5 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { stripe, handlePaymentSuccess, handlePaymentFailure } from "../payments/stripe";
+import { createTransferReversal } from "../payments/connect";
+import { getPayoutsByOrderId, updatePayoutStatus } from "@artfromromania/db";
+import { prisma } from "@artfromromania/db";
 
 export async function stripeWebhookRoutes(fastify: FastifyInstance) {
   // Configure Fastify to handle raw body for webhook signature verification
@@ -48,6 +51,14 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
           await handlePaymentFailure(event.data.object.id);
           break;
 
+        case 'charge.refunded':
+          await handleRefund(event.data.object);
+          break;
+
+        case 'charge.dispute.created':
+          await handleChargeback(event.data.object);
+          break;
+
         default:
           console.log(`Unhandled event type: ${event.type}`);
       }
@@ -58,4 +69,109 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ error: "Webhook handler failed" });
     }
   });
+}
+
+async function handleRefund(charge: any) {
+  const paymentIntentId = charge.payment_intent;
+  
+  // Find the order
+  const order = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const orderId = order.metadata?.orderId;
+
+  if (!orderId) {
+    console.error("No order ID found in payment intent metadata");
+    return;
+  }
+
+  // Get payouts for this order
+  const payouts = await getPayoutsByOrderId(prisma, orderId);
+
+  // Process reversals for each payout
+  for (const payout of payouts) {
+    if (payout.status === "PAID" && payout.providerTransferId) {
+      try {
+        // Calculate reversal amount (proportional to refund)
+        const refundAmount = charge.amount_refunded;
+        const originalAmount = charge.amount;
+        const reversalAmount = Math.round(
+          (payout.orderItem.subtotal * refundAmount) / originalAmount
+        );
+
+        if (reversalAmount > 0) {
+          // Create transfer reversal
+          await createTransferReversal(
+            payout.providerTransferId,
+            reversalAmount,
+            {
+              orderId,
+              artistId: payout.artist.id,
+              reason: "refund"
+            }
+          );
+
+          // Update payout status
+          await updatePayoutStatus(
+            prisma,
+            payout.id,
+            "REVERSED"
+          );
+        }
+      } catch (error) {
+        console.error(`Failed to reverse payout ${payout.id}:`, error);
+      }
+    }
+  }
+}
+
+async function handleChargeback(dispute: any) {
+  const charge = dispute.charge;
+  const paymentIntentId = charge.payment_intent;
+  
+  // Find the order
+  const order = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const orderId = order.metadata?.orderId;
+
+  if (!orderId) {
+    console.error("No order ID found in payment intent metadata");
+    return;
+  }
+
+  // Get payouts for this order
+  const payouts = await getPayoutsByOrderId(prisma, orderId);
+
+  // Process reversals for each payout
+  for (const payout of payouts) {
+    if (payout.status === "PAID" && payout.providerTransferId) {
+      try {
+        // Calculate reversal amount (proportional to dispute amount)
+        const disputeAmount = dispute.amount;
+        const originalAmount = charge.amount;
+        const reversalAmount = Math.round(
+          (payout.orderItem.subtotal * disputeAmount) / originalAmount
+        );
+
+        if (reversalAmount > 0) {
+          // Create transfer reversal
+          await createTransferReversal(
+            payout.providerTransferId,
+            reversalAmount,
+            {
+              orderId,
+              artistId: payout.artist.id,
+              reason: "chargeback"
+            }
+          );
+
+          // Update payout status
+          await updatePayoutStatus(
+            prisma,
+            payout.id,
+            "REVERSED"
+          );
+        }
+      } catch (error) {
+        console.error(`Failed to reverse payout ${payout.id}:`, error);
+      }
+    }
+  }
 }

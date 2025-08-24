@@ -1,0 +1,47 @@
+{
+	"name": "@artfromromania/api",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "tsx watch src/index.ts",
+		"build": "tsc",
+		"start": "node dist/index.js",
+		"lint": "eslint src --ext .ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest"
+	},
+	"dependencies": {
+		"@artfromromania/auth": "workspace:*",
+		"@artfromromania/db": "workspace:*",
+		"@artfromromania/search": "workspace:*",
+		"@artfromromania/shared": "workspace:*",
+		"@artfromromania/storage": "workspace:*",
+		"@artfromromania/tax": "workspace:*",
+		"@fastify/cookie": "^10.0.0",
+		"@fastify/cors": "^10.0.0",
+		"@fastify/helmet": "^12.0.1",
+		"@prisma/client": "^5.22.0",
+		"@types/qrcode": "^1.5.5",
+		"cuid": "^3.0.0",
+		"date-fns": "^4.1.0",
+		"dotenv": "^16.4.5",
+		"fastify": "^5.0.0",
+		"jose": "^5.2.0",
+		"mime": "^3.0.0",
+		"pdfkit": "^0.17.1",
+		"qrcode": "^1.5.4",
+		"sharp": "^0.33.5",
+		"stripe": "^18.4.0",
+		"zod": "^3.23.8"
+	},
+	"devDependencies": {
+		"@artfromromania/eslint-config": "workspace:*",
+		"@artfromromania/tsconfig": "workspace:*",
+		"@types/node": "^22.10.2",
+		"@types/pdfkit": "^0.17.2",
+		"eslint": "^8.57.0",
+		"tsx": "^4.19.2",
+		"typescript": "^5.5.3",
+		"vitest": "^2.1.8"
+	}
+}

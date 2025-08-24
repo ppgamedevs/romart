@@ -31,6 +31,13 @@ import { taxRoutes } from "./routes/tax";
 import { invoiceRoutes } from "./routes/invoices";
 import { studioRoutes } from "./routes/studio";
 import { downloadRoutes } from "./routes/downloads";
+import { connectRoutes } from "./routes/connect";
+import { payoutsRoutes } from "./routes/payouts";
+import { fulfillmentRoutes } from "./routes/fulfillment";
+import { searchRoutes } from "./routes/search";
+import { moderationRoutes } from "./routes/moderation";
+import { reportsRoutes } from "./routes/reports";
+import { shippingRoutes } from "./routes/shipping";
 import { ensureIndexes } from "@artfromromania/search";
 
 const fastify = Fastify({
@@ -64,6 +71,13 @@ const start = async () => {
 		await fastify.register(invoiceRoutes, { prefix: "/invoices" });
 		await fastify.register(studioRoutes, { prefix: "/studio" });
 		await fastify.register(downloadRoutes, { prefix: "/downloads" });
+		await fastify.register(connectRoutes, { prefix: "/connect" });
+		await fastify.register(payoutsRoutes, { prefix: "/payouts" });
+		await fastify.register(fulfillmentRoutes, { prefix: "/fulfillment" });
+		await fastify.register(searchRoutes, { prefix: "/search" });
+		await fastify.register(moderationRoutes);
+		await fastify.register(reportsRoutes);
+		await fastify.register(shippingRoutes, { prefix: "/shipping" });
 
 		// Rate limiters
 		const apiRateLimiter = createRateLimiter("api", 60, 60); // 60 requests per minute

@@ -1,7 +1,12 @@
 import { getAdminClient, getArtworksIndexAdmin } from "./client";
-import { meiliEnv } from "./env";
+import { meiliEnv, isMeilisearchAvailable } from "./env";
 
 export async function ensureIndexes() {
+  if (!isMeilisearchAvailable()) {
+    console.log("⚠️  Meilisearch is not available, skipping index setup");
+    return;
+  }
+
   try {
     const client = getAdminClient();
     const index = getArtworksIndexAdmin();
