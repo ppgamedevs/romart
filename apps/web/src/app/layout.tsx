@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { reportWebVitals } from "@/components/providers/rum";
 
 const inter = Inter({ 
 	subsets: ["latin"],
@@ -95,8 +96,9 @@ export default async function RootLayout({
 				<link rel="icon" href="/favicon.ico" />
 				<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 				<link rel="manifest" href="/manifest.json" />
-				{/* Preconnect for CDN later */}
-				{/* <link rel="preconnect" href="https://your-cdn.com" /> */}
+				{process.env.CDN_PUBLIC_URL && (
+					<link rel="preconnect" href={process.env.CDN_PUBLIC_URL} crossOrigin="anonymous" />
+				)}
 			</head>
 			<body className="min-h-screen bg-background font-sans antialiased">
 				<ErrorBoundary>
@@ -108,3 +110,6 @@ export default async function RootLayout({
 		</html>
 	);
 }
+
+// Export reportWebVitals for Next.js web vitals collection
+export { reportWebVitals };

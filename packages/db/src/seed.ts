@@ -237,8 +237,11 @@ async function main() {
 	const shippingAddress = await prisma.address.create({
 		data: {
 			userId: buyerUser.id,
-			line1: "123 Main Street",
-			line2: "Apt 4B",
+			type: "SHIPPING",
+			firstName: "John",
+			lastName: "Doe",
+			addressLine1: "123 Main Street",
+			addressLine2: "Apt 4B",
 			city: "Bucharest",
 			region: "București",
 			postalCode: "010001",
@@ -313,21 +316,21 @@ async function main() {
 	})
 
 	// Create audit log entries
-	await prisma.auditLog.createMany({
-		data: [
-			{
-				actorId: adminUser.id,
-				action: "SEED_DATA_CREATED",
-				entityType: "Database",
-				entityId: "seed",
-				data: {
-					usersCreated: 3,
-					artworksCreated: 3,
-					ordersCreated: 1,
-					payoutsCreated: 2
-				}
+	await prisma.auditLog.create({
+		data: {
+			actor: {
+				connect: { id: adminUser.id }
+			},
+			action: "SEED_DATA_CREATED",
+			entityType: "Database",
+			entityId: "seed",
+			data: {
+				usersCreated: 3,
+				artworksCreated: 3,
+				ordersCreated: 1,
+				payoutsCreated: 2
 			}
-		]
+		}
 	})
 
 	console.log("✅ Database seeded successfully!")

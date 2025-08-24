@@ -34,6 +34,12 @@ export class SupabaseStorageClient implements StorageClient {
     }
   }
 
+  async createPresignedUploadUrl(key: string, bucket: string, contentType: string, maxSizeBytes?: number): Promise<SignedUrlResult> {
+    // For Supabase, we'll use the regular signed URL approach
+    // since presigned upload URLs are not directly supported
+    return this.getSignedUrl(key, bucket, 3600)
+  }
+
   async putObject(params: PutParams): Promise<void> {
     const { data, error } = await this.client.storage
       .from(params.bucket)

@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MapPin, User } from "lucide-react"
+import { CdnImage } from "@/components/ui/cdn-image"
 
 interface ArtistCardProps {
 	artist?: {
@@ -46,9 +47,11 @@ export function ArtistCard({ artist, loading = false }: ArtistCardProps) {
 				<div className="flex items-center gap-4">
 					<div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
 						{artist.avatarUrl ? (
-							<img
+							<CdnImage
 								src={artist.avatarUrl}
 								alt={artist.name}
+								width={64}
+								height={64}
 								className="h-full w-full rounded-full object-cover"
 							/>
 						) : (

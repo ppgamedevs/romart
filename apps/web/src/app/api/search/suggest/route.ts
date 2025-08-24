@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
 
     const suggestions = await searchSuggestions(query.trim(), 5);
     
-    return NextResponse.json(suggestions);
+    const response = NextResponse.json(suggestions);
+    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+    response.headers.set("Vary", "Accept-Language");
+    
+    return response;
   } catch (error) {
     console.error("Search suggestions error:", error);
     return NextResponse.json(

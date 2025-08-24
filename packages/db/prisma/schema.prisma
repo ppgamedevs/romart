@@ -17,6 +17,11 @@ enum UserRole {
 	BUYER
 }
 
+enum AddressType {
+	SHIPPING
+	BILLING
+}
+
 enum KycStatus {
 	PENDING
 	APPROVED
@@ -129,12 +134,79 @@ enum ShipmentStatus {
 	CANCELLED
 }
 
+enum ReturnStatus {
+	REQUESTED
+	APPROVED
+	RECEIVED
+	QC_PASSED
+	QC_FAILED
+	RESTOCKED
+	REFUNDED
+	CLOSED
+}
+
+enum RefundStatus {
+	PENDING
+	SUCCEEDED
+	FAILED
+	CANCELED
+}
+
+enum CreditNoteStatus {
+	DRAFT
+	PENDING
+	ISSUED
+	VOID
+}
+
+enum DsTaskStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  EXPIRED
+  CANCELED
+}
+
+enum DeletionStatus {
+  REQUESTED
+  CONFIRMED
+  PROCESSING
+  DONE
+  REJECTED
+  CANCELED
+}
+
+enum ConsentKind {
+  ANALYTICS
+  MARKETING
+  NECESSARY
+}
+
+enum ConsentSource {
+  CMP
+  UI
+  BACKOFFICE
+  IMPORT
+}
+
+enum LegalKind {
+  TOS
+  PRIVACY
+  COOKIES
+}
+
 model User {
 	id           String   @id @default(cuid())
-	email        String   @unique
-	name         String
+	email        String?  @unique
+	name         String?
+	emailVerified DateTime?
+	image        String?
 	role         UserRole @default(BUYER)
 	passwordHash String?
+	deletedAt    DateTime?
+	anonymizedAt DateTime?
+	deletionReason String?
 	createdAt    DateTime @default(now())
 	updatedAt    DateTime @updatedAt
 
@@ -146,6 +218,11 @@ model User {
 	accounts   Account[]
 	sessions   Session[]
 	digitalEntitlements DigitalEntitlement[]
+	adminNotes AdminNote[]
+	consents   Consent[]
+	legalAcceptances LegalAcceptance[]
+	dataExportTasks DataExportTask[]
+	deletionRequests DeletionRequest[]
 
 	@@map("users")
 }
@@ -310,6 +387,9 @@ model Order {
 	// Shipping fields
 	shippingMethod     String?         // "STANDARD" | "EXPRESS"
 	shippingServiceName String?        // ex: "DHL Paket Intl"
+	// Admin fields
+	refundedAmount     Int             @default(0)
+	canceledAt         DateTime?
 	createdAt          DateTime        @default(now())
 	updatedAt          DateTime        @updatedAt
 
@@ -322,6 +402,9 @@ model Order {
 	digitalEntitlements DigitalEntitlement[]
 	fulfillmentOrders FulfillmentOrder[]
 	shipments  Shipment[]
+	refunds    Refund[]
+	returns    Return[]
+	creditNotes CreditNote[]
 
 	@@index([buyerId, createdAt])
 	@@map("orders")
@@ -337,6 +420,7 @@ model OrderItem {
 	quantity   Int           @default(1)
 	unitAmount Int
 	subtotal   Int
+	refundedQty Int          @default(0)
 	createdAt  DateTime      @default(now())
 
 	// Relations
@@ -346,28 +430,36 @@ model OrderItem {
 	edition Edition? @relation(fields: [editionId], references: [id], onDelete: SetNull)
 	payouts Payout[]
 	fulfillmentItems FulfillmentItem[]
+	returnItems ReturnItem[]
 
 	@@map("order_items")
 }
 
 model Address {
-	id         String   @id @default(cuid())
-	userId     String?
-	line1      String
-	line2      String?
-	city       String
-	region     String?
-	postalCode String?
-	country    String
-	isBusiness Boolean  @default(false)
-	vatId      String?
-	createdAt  DateTime @default(now())
-	updatedAt  DateTime @updatedAt
+	id            String   @id @default(cuid())
+	userId        String?
+	type          AddressType
+	firstName     String
+	lastName      String
+	company       String?
+	addressLine1  String
+	addressLine2  String?
+	city          String
+	region        String?
+	postalCode    String
+	country       String
+	phone         String?
+	phoneEncId    String?  // FK to PiiCipher for encrypted phone
+	isBusiness    Boolean  @default(false)
+	vatId         String?
+	createdAt     DateTime @default(now())
+	updatedAt     DateTime @updatedAt
 
 	// Relations
 	user            User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 	shippingOrders  Order[] @relation("OrderShippingAddress")
 	billingOrders   Order[] @relation("OrderBillingAddress")
+	phoneCipher     PiiCipher? @relation(fields: [phoneEncId], references: [id])
 
 	@@map("addresses")
 }
@@ -703,6 +795,8 @@ model Shipment {
 	status          ShipmentStatus @default(READY_TO_SHIP)
 	labelStorageKey String?
 	trackingNumbers Json?
+	handedOverAt    DateTime?      // when marked in transit
+	deliveredAt     DateTime?      // when marked delivered
 	createdAt       DateTime       @default(now())
 	updatedAt       DateTime       @updatedAt
 
@@ -731,6 +825,247 @@ model ShipmentPackage {
 	shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
 	@@map("shipment_packages")
+}
+
+model AdminNote {
+	id         String   @id @default(cuid())
+	entityType String   // "ORDER" | "ARTWORK" | "ARTIST" | "USER" | "SHIPMENT"
+	entityId   String
+	authorId   String
+	body       String
+	createdAt  DateTime @default(now())
+
+	// Relations
+	author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+	@@index([entityType, entityId, createdAt])
+	@@map("admin_notes")
+}
+
+model Return {
+	id         String       @id @default(cuid())
+	orderId    String
+	status     ReturnStatus @default(REQUESTED)
+	reason     String?
+	approvedBy String?
+	receivedAt DateTime?
+	qcNotes    String?
+	outcome    String?      // "REFUND_FULL" | "REFUND_PARTIAL" | "NO_REFUND"
+	// Additional fields for RMA workflow
+	customerNotes String?
+	adminNotes    String?
+	qcPassed      Boolean?
+	qcAt          DateTime?
+	restockedAt   DateTime?
+	createdAt     DateTime  @default(now())
+	updatedAt     DateTime  @updatedAt
+
+	// Relations
+	order Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	items ReturnItem[]
+	creditNotes CreditNote[]
+
+	@@index([orderId, status, createdAt])
+	@@map("returns")
+}
+
+model ReturnItem {
+	id          String @id @default(cuid())
+	returnId    String
+	orderItemId String
+	qty         Int    @default(1)
+	reason      String?
+	// QC fields
+	qcPassed    Boolean?
+	qcNotes     String?
+	createdAt   DateTime @default(now())
+
+	// Relations
+	return    Return    @relation(fields: [returnId], references: [id], onDelete: Cascade)
+	orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+	@@map("return_items")
+}
+
+model Refund {
+	id               String       @id @default(cuid())
+	orderId          String
+	status           RefundStatus @default(PENDING)
+	amount           Int          // minor units
+	currency         String       @default("EUR")
+	provider         String       @default("STRIPE")
+	providerRefundId String?
+	reason           String?
+	createdAt        DateTime     @default(now())
+	updatedAt        DateTime     @updatedAt
+
+	// Relations
+	order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+	@@index([orderId, status, createdAt])
+	@@map("refunds")
+}
+
+model CreditNote {
+	id             String           @id @default(cuid())
+	orderId        String
+	returnId       String?
+	invoiceId      String?
+	number         String           @unique
+	status         CreditNoteStatus @default(DRAFT)
+	issuedAt       DateTime?
+	reason         String?
+	subtotalAmount Int              @default(0)
+	taxAmount      Int              @default(0)
+	totalAmount    Int              @default(0)
+	currency       String           @default("EUR")
+	pdfStorageKey  String?
+	createdAt      DateTime         @default(now())
+
+	// Relations
+	order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+	return Return? @relation(fields: [returnId], references: [id], onDelete: SetNull)
+
+	@@index([orderId, status, createdAt])
+	@@map("credit_notes")
+}
+
+model WebhookEvent {
+	id        String   @id @default(cuid())
+	provider  String
+	type      String
+	raw       Json
+	receivedAt DateTime @default(now())
+	processed Boolean   @default(false)
+
+	@@index([provider, type, receivedAt])
+	@@map("webhook_events")
+}
+
+model Consent {
+  id         String   @id @default(cuid())
+  userId     String?
+  anonymousId String?  @unique
+  kind       ConsentKind
+  granted    Boolean
+  source     ConsentSource @default(CMP)
+  country    String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, kind, createdAt])
+  @@map("consents")
+}
+
+model LegalDocument {
+  id          String   @id @default(cuid())
+  kind        LegalKind
+  version     String
+  url         String
+  effectiveAt DateTime
+  createdAt   DateTime @default(now())
+
+  // Relations
+  acceptances LegalAcceptance[]
+
+  @@unique([kind, version])
+  @@map("legal_documents")
+}
+
+model LegalAcceptance {
+  id         String   @id @default(cuid())
+  userId     String
+  docId      String
+  version    String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doc        LegalDocument @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([userId, version])
+  @@map("legal_acceptances")
+}
+
+model DataExportTask {
+  id          String   @id @default(cuid())
+  userId      String
+  status      DsTaskStatus @default(PENDING)
+  format      String   @default("ZIP")
+  storageKey  String?
+  expiresAt   DateTime?
+  requestedAt DateTime @default(now())
+  completedAt DateTime?
+  error       String?
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, requestedAt])
+  @@map("data_export_tasks")
+}
+
+model DeletionRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  status      DeletionStatus @default(REQUESTED)
+  reason      String?
+  tokenHash   String   @unique           // confirm token hash (not raw)
+  requestedAt DateTime @default(now())
+  confirmedAt DateTime?
+  scheduledAt DateTime?                  // now + graceDays
+  processedAt DateTime?
+  error       String?
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@map("deletion_requests")
+}
+
+model ErasureTombstone {
+  id         String   @id @default(cuid())
+  emailHash  String?  @unique
+  userId     String?
+  createdAt  DateTime @default(now())
+  reason     String?
+
+  @@map("erasure_tombstones")
+}
+
+model PiiCipher {
+  id         String   @id @default(cuid())
+  entityType String   // "Address" | ...
+  entityId   String
+  field      String   // "phone" | ...
+  keyVersion Int
+  iv         Bytes
+  tag        Bytes
+  ciphertext Bytes
+  createdAt  DateTime @default(now())
+
+  // Relations
+  addresses  Address[]
+
+  @@index([entityType, entityId, field])
+  @@map("pii_ciphers")
+}
+
+model RumEvent {
+  id        String   @id @default(cuid())
+  t         String   // metric type (FCP, LCP, CLS, INP, TTFB)
+  v         Float
+  route     String?
+  url       String?
+  d         String?  // device hint
+  ts        DateTime @default(now())
+
+  @@map("rum_events")
 }
 
 

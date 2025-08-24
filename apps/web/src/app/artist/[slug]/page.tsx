@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@artfromromania/db"
 import { Metadata } from "next"
+
+// ISR: Revalidate every 5 minutes
+export const revalidate = 300;
 import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

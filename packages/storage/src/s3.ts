@@ -46,6 +46,22 @@ export class S3StorageClient implements StorageClient {
     }
   }
 
+  async createPresignedUploadUrl(key: string, bucket: string, contentType: string, maxSizeBytes?: number): Promise<SignedUrlResult> {
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3")
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner")
+    
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: contentType,
+    })
+
+    const url = await getSignedUrl(this.client, command, { expiresIn: 3600 })
+    const expiresAt = new Date(Date.now() + 3600 * 1000)
+
+    return { url, expiresAt }
+  }
+
   async putObject(params: PutParams): Promise<void> {
     const command = new PutObjectCommand({
       Bucket: params.bucket,

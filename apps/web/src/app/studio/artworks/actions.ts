@@ -37,6 +37,7 @@ async function getCurrentArtist() {
     select: {
       id: true,
       displayName: true,
+      slug: true,
       kycStatus: true,
       completionScore: true,
     }
@@ -363,6 +364,22 @@ export async function publishArtwork(artworkId: string) {
   revalidatePath(`/artist/${artist.displayName}`)
   revalidatePath(`/artwork/${fullArtwork.slug}`)
   
+  // Trigger on-demand revalidation for cache tags
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/revalidate?secret=${process.env.ON_DEMAND_REVALIDATE_SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        tags: [`artist:${artist.slug}`, `artwork:${fullArtwork.slug}`] 
+      })
+    });
+    if (!response.ok) {
+      console.warn("Failed to trigger revalidation");
+    }
+  } catch (error) {
+    console.warn("Failed to trigger revalidation:", error);
+  }
+  
   return { success: true }
 }
 
@@ -383,6 +400,22 @@ export async function unpublishArtwork(artworkId: string) {
   revalidatePath("/studio/artworks")
   revalidatePath(`/artist/${artist.displayName}`)
   revalidatePath(`/artwork/${artwork.slug}`)
+  
+  // Trigger on-demand revalidation for cache tags
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/revalidate?secret=${process.env.ON_DEMAND_REVALIDATE_SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        tags: [`artist:${artist.slug}`, `artwork:${artwork.slug}`] 
+      })
+    });
+    if (!response.ok) {
+      console.warn("Failed to trigger revalidation");
+    }
+  } catch (error) {
+    console.warn("Failed to trigger revalidation:", error);
+  }
   
   return { success: true }
 }

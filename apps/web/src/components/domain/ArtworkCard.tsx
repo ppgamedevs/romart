@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Palette, User } from "lucide-react"
+import { CdnImage } from "@/components/ui/cdn-image"
 
 interface ArtworkCardProps {
 	artwork?: {
@@ -44,9 +45,11 @@ export function ArtworkCard({ artwork, loading = false }: ArtworkCardProps) {
 			<CardHeader className="pb-4">
 				<AspectRatio ratio={4 / 3} className="overflow-hidden rounded-lg">
 					{artwork.imageUrl ? (
-						<img
+						<CdnImage
 							src={artwork.imageUrl}
 							alt={artwork.title}
+							width={400}
+							height={300}
 							className="h-full w-full object-cover"
 						/>
 					) : (

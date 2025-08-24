@@ -66,7 +66,7 @@ export async function getOrCreateStripeAccount(artistId: string): Promise<Stripe
   const account = await stripe.accounts.create({
     type: "express",
     country: artist.locationCountry || "RO",
-    email: artist.user.email,
+    email: artist.user?.email || "artist@romart.com", // Fallback email
     capabilities: {
       transfers: { requested: true },
       card_payments: { requested: true },

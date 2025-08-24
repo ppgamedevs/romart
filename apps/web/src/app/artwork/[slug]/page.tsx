@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ShoppingCart, Download, Palette, Calendar, Ruler, Frame } from "lucide-react";
 import Link from "next/link";
 
-export const revalidate = 60;
+export const revalidate = 300; // 5 minutes
 
 interface ArtworkPageProps {
   params: Promise<{

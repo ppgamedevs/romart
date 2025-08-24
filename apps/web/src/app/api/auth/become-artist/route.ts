@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Generate slug from name
-		const slug = `${user.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${user.id.slice(-8)}`
+		const displayName = user.name || user.email || "Artist"
+		const slug = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${user.id.slice(-8)}`
 
 		// Update user role and create artist profile
 		await prisma.$transaction([
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 				data: {
 					userId: user.id,
 					slug,
-					displayName: user.name
+					displayName
 				}
 			})
 		])

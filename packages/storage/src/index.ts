@@ -90,3 +90,46 @@ export async function getSignedUrl(key: string, expiresIn: number = 3600): Promi
   const result = await storage.getSignedUrl(key, config.privateBucket, expiresIn)
   return result.url
 }
+
+// Presigned upload URL for direct uploads
+export async function createPresignedUploadUrl(options: {
+  key: string
+  contentType: string
+  maxSizeBytes?: number
+}): Promise<{ url: string; expiresAt: Date }> {
+  const config = getStorageConfig()
+  const result = await storage.createPresignedUploadUrl(
+    options.key,
+    config.privateBucket,
+    options.contentType,
+    options.maxSizeBytes
+  )
+  return {
+    url: result.url,
+    expiresAt: result.expiresAt
+  }
+}
+
+// Signed download URL for private files
+export async function getSignedDownloadUrl(options: {
+  key: string
+  expiresIn?: number
+}): Promise<string> {
+  const config = getStorageConfig()
+  const result = await storage.getSignedDownloadUrl(
+    options.key,
+    config.privateBucket,
+    options.expiresIn || 3600
+  )
+  return result.url
+}
+
+// Alias for backward compatibility
+export const createSignedDownloadUrl = getSignedDownloadUrl
+
+// Delete file from storage
+export async function deleteFromStorage(key: string, bucket?: string): Promise<void> {
+  const config = getStorageConfig()
+  const targetBucket = bucket || config.privateBucket
+  await storage.delete(key, targetBucket)
+}

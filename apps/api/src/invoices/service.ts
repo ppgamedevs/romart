@@ -66,11 +66,11 @@ export async function generateInvoiceForOrder(orderId: string): Promise<string> 
       postcode: process.env.SELLER_ADDRESS_POSTCODE || "060379",
       country: process.env.SELLER_ADDRESS_COUNTRY || "RO"
     },
-    buyerName: order.buyer.name || order.buyer.email,
+    buyerName: order.buyer.name || order.buyer.email || "Unknown Buyer",
     buyerVatId: order.billingAddress?.vatId || undefined,
           buyerAddress: {
-        line1: order.billingAddress?.line1 || "",
-        line2: order.billingAddress?.line2 || undefined,
+        line1: order.billingAddress?.addressLine1 || "",
+        line2: order.billingAddress?.addressLine2 || undefined,
         city: order.billingAddress?.city || "",
         region: order.billingAddress?.region || undefined,
         postalCode: order.billingAddress?.postalCode || undefined,

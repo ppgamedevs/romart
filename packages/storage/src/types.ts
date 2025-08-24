@@ -51,6 +51,7 @@ export interface StorageConfig {
 
 export interface StorageClient {
   presignUpload(params: PresignPostParams): Promise<PresignPostResult>
+  createPresignedUploadUrl(key: string, bucket: string, contentType: string, maxSizeBytes?: number): Promise<SignedUrlResult>
   finalizeUpload(key: string, bucket: string): Promise<void>
   delete(key: string, bucket: string): Promise<void>
   getSignedUrl(key: string, bucket: string, expiresIn?: number): Promise<SignedUrlResult>

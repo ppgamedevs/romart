@@ -442,34 +442,66 @@ export async function createPaymentIntent(payload: CreatePaymentIntentPayload) {
 
   if (shippingAddress) {
     const shippingAddr = await prisma.address.create({
-      data: shippingAddress
+      data: {
+        type: "SHIPPING",
+        firstName: "User", // Default values - should be provided by client
+        lastName: "Name",
+        addressLine1: shippingAddress.line1,
+        addressLine2: shippingAddress.line2,
+        city: shippingAddress.city,
+        region: shippingAddress.region,
+        postalCode: shippingAddress.postalCode || "",
+        country: shippingAddress.country,
+        isBusiness: shippingAddress.isBusiness,
+        vatId: shippingAddress.vatId
+      }
     });
     shippingAddressId = shippingAddr.id;
   }
 
   if (billingAddress) {
     const billingAddr = await prisma.address.create({
-      data: billingAddress
+      data: {
+        type: "BILLING",
+        firstName: "User", // Default values - should be provided by client
+        lastName: "Name",
+        addressLine1: billingAddress.line1,
+        addressLine2: billingAddress.line2,
+        city: billingAddress.city,
+        region: billingAddress.region,
+        postalCode: billingAddress.postalCode || "",
+        country: billingAddress.country,
+        isBusiness: billingAddress.isBusiness,
+        vatId: billingAddress.vatId
+      }
     });
     billingAddressId = billingAddr.id;
   }
 
   // Create order
+  const orderData: any = {
+    buyerId: cart.userId || "anonymous", // TODO: handle anonymous users properly
+    status: "PENDING",
+    subtotalAmount: taxCalculation.subtotal,
+    taxAmount: taxCalculation.tax,
+    shippingAmount: shipping,
+    totalAmount,
+    currency: cart.currency,
+    paymentProvider: "STRIPE",
+    shippingMethod,
+    shippingServiceName
+  };
+
+  if (shippingAddressId) {
+    orderData.shippingAddressId = shippingAddressId;
+  }
+
+  if (billingAddressId) {
+    orderData.billingAddressId = billingAddressId;
+  }
+
   const order = await prisma.order.create({
-    data: {
-      buyerId: cart.userId || "anonymous", // TODO: handle anonymous users properly
-      status: "PENDING",
-      subtotalAmount: taxCalculation.subtotal,
-      taxAmount: taxCalculation.tax,
-      shippingAmount: shipping,
-      totalAmount,
-      currency: cart.currency,
-      paymentProvider: "STRIPE",
-      shippingAddressId,
-      billingAddressId,
-      shippingMethod,
-      shippingServiceName
-    }
+    data: orderData
   });
 
   // Create order items
