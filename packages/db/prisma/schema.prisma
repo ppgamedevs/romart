@@ -196,6 +196,40 @@ enum LegalKind {
   COOKIES
 }
 
+enum InquiryType {
+  QUESTION
+  COMMISSION
+}
+
+enum InquiryStatus {
+  NEW
+  QUALIFIED
+  AWAITING_ARTIST
+  QUOTE_SENT
+  DEPOSIT_PAID
+  IN_PROGRESS
+  PROOF_REVIEW
+  DELIVERED
+  WON
+  LOST
+  CANCELED
+}
+
+enum MessageRole {
+  CLIENT
+  CURATOR
+  ARTIST
+  SYSTEM
+}
+
+enum MilestoneStatus {
+  DUE
+  AUTHORIZED
+  CAPTURED
+  RELEASED
+  CANCELED
+}
+
 model User {
 	id           String   @id @default(cuid())
 	email        String?  @unique
@@ -223,6 +257,10 @@ model User {
 	legalAcceptances LegalAcceptance[]
 	dataExportTasks DataExportTask[]
 	deletionRequests DeletionRequest[]
+	inquiries  Inquiry[] @relation("ClientInquiries")
+	curatedInquiries Inquiry[] @relation("CuratorInquiries")
+	favorites  Favorite[]
+	curatorBadges CuratorBadge[] @relation("CuratorBadges")
 
 	@@map("users")
 }
@@ -256,6 +294,11 @@ model Artist {
 	banReason       String?
 	shadowbanned    Boolean @default(false)
 	trustScore      Int     @default(50)
+	// i18n fields
+	displayNameLocalized Json?   // { en: "John Doe", ro: "Ion Pop" }
+	bioLocalized         Json?   // { en: "...", ro: "..." }
+	slugEn               String? @unique
+	slugRo               String? @unique
 	createdAt       DateTime @default(now())
 	updatedAt       DateTime @updatedAt
 
@@ -266,6 +309,8 @@ model Artist {
 	payouts         Payout[]
 	kycVerification KycVerification?
 	images          Image[]
+	inquiries       Inquiry[]
+	stats           ArtistStat?
 
 	@@map("artists")
 }
@@ -296,6 +341,11 @@ model Artwork {
 	flaggedCount     Int              @default(0)
 	lastReviewedAt   DateTime?
 	suppressed       Boolean          @default(false)
+	// i18n fields
+	titleLocalized       Json?   // { en: "Sunset", ro: "Apus" }
+	descriptionLocalized Json?
+	slugEn               String? @unique
+	slugRo               String? @unique
 	createdAt      DateTime          @default(now())
 	updatedAt      DateTime          @updatedAt
 
@@ -306,6 +356,11 @@ model Artwork {
 	orderItems OrderItem[]
 	cartItems CartItem[]
 	hold      ArtworkHold?
+	inquiries Inquiry[]
+	favorites Favorite[]
+	stats     ArtworkStat?
+	badges    CuratorBadge[]
+	collectionItems CollectionItem[]
 
 	@@index([artistId, status])
 	@@index([moderationStatus, suppressed, contentRating])
@@ -1066,6 +1121,207 @@ model RumEvent {
   ts        DateTime @default(now())
 
   @@map("rum_events")
+}
+
+model Inquiry {
+  id            String @id @default(cuid())
+  type          InquiryType
+  status        InquiryStatus @default(NEW)
+  clientId      String?      // nullable dacă guest; păstrăm doar email în separat mascat
+  clientEmail   String?      // NEVER expus artistului
+  artistId      String
+  artworkId     String?
+  locale        String @default("en")
+  budgetMin     Int?      // minor units
+  budgetMax     Int?
+  dimensions    String?   // liber (ex: 80x120 cm)
+  deadlineAt    DateTime?
+  notes         String?
+  curatorId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  client        User?    @relation("ClientInquiries", fields: [clientId], references: [id], onDelete: SetNull)
+  artist        Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artwork       Artwork? @relation(fields: [artworkId], references: [id], onDelete: SetNull)
+  curator       User?    @relation("CuratorInquiries", fields: [curatorId], references: [id], onDelete: SetNull)
+  messages      InquiryMessage[]
+  files         InquiryFile[]
+  quote         CommissionQuote?
+  milestones    CommissionMilestone[]
+
+  @@index([artistId, status, createdAt])
+  @@index([curatorId, status, createdAt])
+  @@map("inquiries")
+}
+
+model InquiryMessage {
+  id        String @id @default(cuid())
+  inquiryId String
+  role      MessageRole
+  body      String        // redacted & stored safe
+  createdAt DateTime @default(now())
+
+  // Relations
+  inquiry   Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@map("inquiry_messages")
+}
+
+model InquiryFile {
+  id         String @id @default(cuid())
+  inquiryId  String
+  storageKey String
+  kind       String  // "REF" | "PROOF" | "FINAL"
+  mime       String?
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  inquiry    Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@map("inquiry_files")
+}
+
+model CommissionQuote {
+  id          String @id @default(cuid())
+  inquiryId   String @unique
+  number      String @unique
+  currency    String @default("EUR")
+  subtotal    Int
+  taxAmount   Int  @default(0)
+  total       Int
+  depositBps  Int  @default(3000)
+  terms       String?
+  pdfKey      String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  inquiry     Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@map("commission_quotes")
+}
+
+model CommissionMilestone {
+  id            String @id @default(cuid())
+  inquiryId     String
+  title         String
+  amount        Int
+  currency      String @default("EUR")
+  status        MilestoneStatus @default(DUE)
+  stripePiId    String?
+  capturedAt    DateTime?
+  releasedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  inquiry       Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@index([inquiryId, status])
+  @@map("commission_milestones")
+}
+
+// Social Proof Models
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  artworkId  String
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artwork    Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, artworkId])
+  @@index([artworkId, createdAt])
+  @@map("favorites")
+}
+
+model ArtworkStat {
+  artworkId      String   @id
+  favoritesCount Int      @default(0)
+  views24h       Int      @default(0)
+  views7d        Int      @default(0)
+  soldCount      Int      @default(0)
+  countriesCount Int      @default(0)
+  lastSoldAt     DateTime?
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  artwork        Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  
+  @@map("artwork_stats")
+}
+
+model ArtistStat {
+  artistId       String   @id
+  followersCount Int      @default(0)
+  soldCountries  Int      @default(0)
+  totalSold      Int      @default(0)
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  artist         Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  
+  @@map("artist_stats")
+}
+
+enum CuratorBadgeKind {
+  CURATOR_PICK
+  NEW_ARRIVAL
+  TRENDING
+  LIMITED_LEFT
+  EDITION_SOLD_OUT
+  SHIPS_FROM_RO
+  FEATURED
+}
+
+model CuratorBadge {
+  id          String           @id @default(cuid())
+  kind        CuratorBadgeKind
+  artworkId   String
+  curatorId   String?
+  notes       String?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  artwork     Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  curator     User?    @relation("CuratorBadges", fields: [curatorId], references: [id], onDelete: SetNull)
+  
+  @@index([artworkId, kind, expiresAt])
+  @@map("curator_badges")
+}
+
+model CuratedCollection {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       Json    // {en:"Abstract Highlights", ro:"Selecții Abstracte"}
+  description Json?
+  coverKey    String?
+  isPublic    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  items       CollectionItem[]
+  
+  @@map("curated_collections")
+}
+
+model CollectionItem {
+  id           String  @id @default(cuid())
+  collectionId String
+  artworkId    String
+  order        Int     @default(0)
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  collection   CuratedCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  artwork      Artwork           @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  
+  @@unique([collectionId, artworkId])
+  @@map("collection_items")
 }
 
 

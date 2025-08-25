@@ -9,8 +9,8 @@ const envSchema = z.object({
   SHIP_INSURANCE_RATE_BPS: z.string().transform(val => parseInt(val, 10)).default("100"),
   SHIP_DIM_WEIGHT_DIVISOR: z.string().transform(val => parseInt(val, 10)).default("5000"),
   SHIP_MAX_SIDE_CM: z.string().transform(val => parseInt(val, 10)).default("150"),
-  SHIP_PACKAGES_JSON: z.string(),
-  SHIP_RATE_TABLE_JSON: z.string(),
+  SHIP_PACKAGES_JSON: z.string().default("{}"),
+  SHIP_RATE_TABLE_JSON: z.string().default("{}"),
 });
 
 export const shippingEnv = envSchema.parse(process.env);

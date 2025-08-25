@@ -1,21 +1,46 @@
+// import createNextIntlPlugin from 'next-intl/plugin';
+
+// const withNextIntl = createNextIntlPlugin();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    optimizePackageImports: [
-      "@/components/ui", 
-      "lucide-react", 
-      "date-fns"
-    ],
+    // Disable optimizePackageImports temporarily to fix webpack issues
+    // optimizePackageImports: [
+    //   "@/components/ui",
+    //   "lucide-react",
+    //   "date-fns",
+    //   "@artfromromania/shared"
+    // ],
+  },
+  // Suppress hydration warnings in development (often caused by browser extensions)
+  reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't bundle node:crypto on the client side
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        crypto: false,
+        fs: false,
+        path: false,
+        os: false,
+      }
+    }
+    return config
   },
   images: {
     remotePatterns: (process.env.IMAGE_ALLOWED_ORIGINS || "")
       .split(",")
       .filter(Boolean)
-      .map(host => ({ 
-        protocol: "https", 
-        hostname: host.trim() 
+      .map(host => ({
+        protocol: "https",
+        hostname: host.trim()
       })),
     formats: ["image/avif", "image/webp"],
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production"
   },
   async headers() {
     return [
@@ -31,7 +56,23 @@ const nextConfig = {
           { key: "Cache-Control", value: "private, no-store" }
         ]
       },
-      // HTML default: controlled at route handler level
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY"
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff"
+          },
+          {
+            key: "Referrer-Policy",
+            value: "origin-when-cross-origin"
+          }
+        ]
+      }
     ];
   },
 };

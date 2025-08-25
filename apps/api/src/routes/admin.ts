@@ -194,6 +194,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
       
       // Create Stripe refund
+      if (!stripe) {
+        return reply.status(500).send({
+          success: false,
+          error: "Stripe not configured"
+        });
+      }
+      
       const refund = await stripe.refunds.create({
         payment_intent: order.providerIntentId!,
         amount: body.amount,
@@ -295,7 +302,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
       
       // Cancel Stripe payment intent if it exists
-      if (order.providerIntentId) {
+      if (order.providerIntentId && stripe) {
         try {
           await stripe.paymentIntents.cancel(order.providerIntentId);
         } catch (stripeError) {

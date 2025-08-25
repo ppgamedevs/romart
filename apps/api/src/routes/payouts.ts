@@ -6,7 +6,29 @@ import {
   getPendingPayoutsDue,
   updatePayoutStatus
 } from "@artfromromania/db";
-import { createTransferToArtist, getPlatformFeeBps } from "../payments/connect";
+// import { createTransferToArtist, getPlatformFeeBps } from "../payments/connect";
+
+// Temporary implementations until connect module is ready
+function getPlatformFeeBps(): number {
+  return parseInt(process.env.PLATFORM_FEE_BPS || "300"); // 3% default
+}
+
+async function createTransferToArtist(
+  artistId: string,
+  amount: number,
+  currency: string,
+  orderId: string,
+  description: string
+): Promise<any> {
+  // This would integrate with Stripe Connect for actual transfers
+  // For now, return a mock transfer object
+  return {
+    id: `tr_${Date.now()}_${artistId}`,
+    amount,
+    currency,
+    status: "pending"
+  };
+}
 import { Prisma } from "@prisma/client";
 
 export async function payoutsRoutes(fastify: FastifyInstance) {

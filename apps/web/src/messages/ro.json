@@ -1,0 +1,92 @@
+{
+  "common": {
+    "loading": "Se încarcă...",
+    "error": "A apărut o eroare",
+    "save": "Salvează",
+    "cancel": "Anulează",
+    "delete": "Șterge",
+    "edit": "Editează",
+    "view": "Vezi",
+    "back": "Înapoi",
+    "next": "Următorul",
+    "previous": "Anterior",
+    "search": "Caută",
+    "filter": "Filtrează",
+    "sort": "Sortează",
+    "price": "Preț",
+    "currency": "Monedă"
+  },
+  "navigation": {
+    "home": "Acasă",
+    "discover": "Descoperă",
+    "artists": "Artiști",
+    "artworks": "Lucrări",
+    "about": "Despre",
+    "contact": "Contact",
+    "signIn": "Conectare",
+    "signUp": "Înregistrare",
+    "account": "Cont",
+    "studio": "Studio",
+    "admin": "Admin"
+  },
+  "artwork": {
+    "title": "Titlu",
+    "description": "Descriere",
+    "artist": "Artist",
+    "year": "An",
+    "medium": "Tehnică",
+    "dimensions": "Dimensiuni",
+    "framed": "În ramă",
+    "unframed": "Fără ramă",
+    "category": "Categorie",
+    "status": "Status",
+    "price": "Preț",
+    "addToCart": "Adaugă în coș",
+    "buyNow": "Cumpără acum",
+    "contactArtist": "Contactează artistul",
+    "share": "Distribuie",
+    "report": "Raportează"
+  },
+  "artist": {
+    "name": "Nume",
+    "bio": "Biografie",
+    "location": "Locație",
+    "followers": "Urmăritori",
+    "following": "Urmărește",
+    "artworks": "Lucrări",
+    "follow": "Urmărește",
+    "unfollow": "Nu mai urmări",
+    "contact": "Contact",
+    "viewProfile": "Vezi profilul"
+  },
+  "cart": {
+    "title": "Coș de cumpărături",
+    "empty": "Coșul tău este gol",
+    "items": "articole",
+    "subtotal": "Subtotal",
+    "shipping": "Transport",
+    "tax": "Taxă",
+    "total": "Total",
+    "checkout": "Finalizează comanda",
+    "continueShopping": "Continuă cumpărăturile",
+    "remove": "Elimină"
+  },
+  "checkout": {
+    "title": "Finalizare comandă",
+    "shippingAddress": "Adresa de livrare",
+    "billingAddress": "Adresa de facturare",
+    "paymentMethod": "Metoda de plată",
+    "orderSummary": "Sumar comandă",
+    "placeOrder": "Plasează comanda",
+    "payIn": "Plătește în"
+  },
+  "currency": {
+    "EUR": "Euro",
+    "USD": "Dolar american",
+    "RON": "Leu românesc"
+  },
+  "language": {
+    "en": "Engleză",
+    "ro": "Română"
+  }
+}

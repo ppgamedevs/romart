@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { BecomeArtistButton } from "./become-artist-button"
 import { OrderHistory } from "./order-history"
 
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
 							{user.role === "BUYER" && <BecomeArtistButton />}
 							{user.role === "ARTIST" && (
 								<Button className="w-full" asChild>
-									<a href="/studio">Go to Artist Studio</a>
+									<Link href="/studio">Go to Artist Studio</Link>
 								</Button>
 							)}
 							{user.role === "ADMIN" && (

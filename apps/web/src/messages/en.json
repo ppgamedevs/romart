@@ -1,0 +1,92 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "price": "Price",
+    "currency": "Currency"
+  },
+  "navigation": {
+    "home": "Home",
+    "discover": "Discover",
+    "artists": "Artists",
+    "artworks": "Artworks",
+    "about": "About",
+    "contact": "Contact",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "account": "Account",
+    "studio": "Studio",
+    "admin": "Admin"
+  },
+  "artwork": {
+    "title": "Title",
+    "description": "Description",
+    "artist": "Artist",
+    "year": "Year",
+    "medium": "Medium",
+    "dimensions": "Dimensions",
+    "framed": "Framed",
+    "unframed": "Unframed",
+    "category": "Category",
+    "status": "Status",
+    "price": "Price",
+    "addToCart": "Add to Cart",
+    "buyNow": "Buy Now",
+    "contactArtist": "Contact Artist",
+    "share": "Share",
+    "report": "Report"
+  },
+  "artist": {
+    "name": "Name",
+    "bio": "Biography",
+    "location": "Location",
+    "followers": "Followers",
+    "following": "Following",
+    "artworks": "Artworks",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "contact": "Contact",
+    "viewProfile": "View Profile"
+  },
+  "cart": {
+    "title": "Shopping Cart",
+    "empty": "Your cart is empty",
+    "items": "items",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "tax": "Tax",
+    "total": "Total",
+    "checkout": "Checkout",
+    "continueShopping": "Continue Shopping",
+    "remove": "Remove"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "shippingAddress": "Shipping Address",
+    "billingAddress": "Billing Address",
+    "paymentMethod": "Payment Method",
+    "orderSummary": "Order Summary",
+    "placeOrder": "Place Order",
+    "payIn": "Pay in"
+  },
+  "currency": {
+    "EUR": "Euro",
+    "USD": "US Dollar",
+    "RON": "Romanian Leu"
+  },
+  "language": {
+    "en": "English",
+    "ro": "Romanian"
+  }
+}

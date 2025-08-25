@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -154,7 +155,7 @@ export function DownloadsList({ userId }: DownloadsListProps) {
               You haven&apos;t purchased any digital files yet.
             </p>
             <Button asChild>
-              <a href="/discover?kind=DIGITAL">Browse Digital Art</a>
+              <Link href="/discover?kind=DIGITAL">Browse Digital Art</Link>
             </Button>
           </div>
         </CardContent>

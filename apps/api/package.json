@@ -1,7 +1,7 @@
 {
-	"name": "@artfromromania/api",
-	"version": "0.1.0",
-	"private": true,
+        "name": "@artfromromania/api",
+        "version": "0.1.0",
+        "private": true,
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
 		"build": "tsc",

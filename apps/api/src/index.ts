@@ -5,6 +5,11 @@ import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
 import { getUptime, getTimestamp } from "@artfromromania/shared";
 import { PrismaClient } from "@prisma/client";
+import { inquiryRoutes } from "./routes/inquiries";
+import { favoriteRoutes } from "./routes/favorites";
+import { statsRoutes } from "./routes/stats";
+import { badgeRoutes } from "./routes/badges";
+import { collectionRoutes } from "./routes/collections";
 
 // Use direct URL for API to avoid pooler issues
 const prisma = new PrismaClient({
@@ -25,24 +30,25 @@ import { authPlugin } from "./plugins/auth";
 import { createRateLimiter } from "@artfromromania/auth";
 import { uploadRoutes } from "./routes/uploads";
 import { adminRoutes } from "./routes/admin";
-import { stripeWebhookRoutes } from "./routes/stripeWebhook";
+// import { stripeWebhookRoutes } from "./routes/stripeWebhook";
 import { paymentRoutes } from "./routes/payments";
 import { taxRoutes } from "./routes/tax";
 import { invoiceRoutes } from "./routes/invoices";
 import { studioRoutes } from "./routes/studio";
 import { downloadRoutes } from "./routes/downloads";
-import { connectRoutes } from "./routes/connect";
-import { payoutsRoutes } from "./routes/payouts";
+// import { connectRoutes } from "./routes/connect";
+// import { payoutsRoutes } from "./routes/payouts";
 import { fulfillmentRoutes } from "./routes/fulfillment";
 import { searchRoutes } from "./routes/search";
 import { moderationRoutes } from "./routes/moderation";
 import { reportsRoutes } from "./routes/reports";
-import { shippingRoutes } from "./routes/shipping";
+// import { shippingRoutes } from "./routes/shipping";
 import { returnsRoutes } from "./routes/returns";
 import { consentRoutes } from "./routes/consent";
 import { legalRoutes } from "./routes/legal";
-import { privacyRoutes } from "./routes/privacy";
-import { adminPrivacyRoutes } from "./routes/admin-privacy";
+// import { privacyRoutes } from "./routes/privacy";
+// import { adminPrivacyRoutes } from "./routes/admin-privacy";
+// import { localizationRoutes } from "./routes/localization";
 import { ensureIndexes } from "@artfromromania/search";
 
 const fastify = Fastify({
@@ -70,24 +76,30 @@ const start = async () => {
 		await fastify.register(uploadRoutes, { prefix: "/uploads" });
 		await fastify.register(uploadRoutes, { prefix: "/media" });
 		await fastify.register(adminRoutes);
-		await fastify.register(stripeWebhookRoutes);
+		// await fastify.register(stripeWebhookRoutes);
 		await fastify.register(paymentRoutes);
 		await fastify.register(taxRoutes, { prefix: "/tax" });
 		await fastify.register(invoiceRoutes, { prefix: "/invoices" });
 		await fastify.register(studioRoutes, { prefix: "/studio" });
 		await fastify.register(downloadRoutes, { prefix: "/downloads" });
-		await fastify.register(connectRoutes, { prefix: "/connect" });
-		await fastify.register(payoutsRoutes, { prefix: "/payouts" });
+		// await fastify.register(connectRoutes, { prefix: "/connect" });
+		// await fastify.register(payoutsRoutes, { prefix: "/payouts" });
 		await fastify.register(fulfillmentRoutes, { prefix: "/fulfillment" });
 		await fastify.register(searchRoutes, { prefix: "/search" });
 		await fastify.register(moderationRoutes);
 		await fastify.register(reportsRoutes);
-		await fastify.register(shippingRoutes, { prefix: "/shipping" });
+		// await fastify.register(shippingRoutes, { prefix: "/shipping" });
 		await fastify.register(returnsRoutes, { prefix: "/returns" });
 		await fastify.register(consentRoutes, { prefix: "/consent" });
 		await fastify.register(legalRoutes, { prefix: "/legal" });
-		await fastify.register(privacyRoutes, { prefix: "/privacy" });
-		await fastify.register(adminPrivacyRoutes, { prefix: "/admin/privacy" });
+		// await fastify.register(privacyRoutes, { prefix: "/privacy" });
+		// await fastify.register(adminPrivacyRoutes, { prefix: "/admin/privacy" });
+		// await fastify.register(localizationRoutes);
+		await fastify.register(inquiryRoutes);
+		await fastify.register(favoriteRoutes);
+		await fastify.register(statsRoutes);
+		await fastify.register(badgeRoutes);
+		await fastify.register(collectionRoutes);
 
 		// Rate limiters
 		const apiRateLimiter = createRateLimiter("api", 60, 60); // 60 requests per minute

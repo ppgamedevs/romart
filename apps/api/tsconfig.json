@@ -1,8 +1,9 @@
 {
-	"extends": "@artfromromania/tsconfig/tsconfig.node.json",
-	"compilerOptions": {
-		"outDir": "dist"
-	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+        "extends": "@artfromromania/tsconfig/tsconfig.node.json",
+        "compilerOptions": {
+                "outDir": "dist",
+                "module": "CommonJS"
+        },
+        "include": ["src/**/*"],
+        "exclude": ["node_modules", "dist"]
 }
