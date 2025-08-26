@@ -1,64 +1,48 @@
-import { MetadataRoute } from "next";
-import { prisma } from "@artfromromania/db";
+import type { MetadataRoute } from "next";
 
-export const revalidate = 86400; // 1 day
+type Row = { slug: string; updatedAt: string };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://artfromromania.com";
-
-  // Get published artists
-  const artists = await prisma.artist.findMany({
-    where: {
-      kycStatus: "APPROVED",
-      banned: false,
-      shadowbanned: false
-    },
-    select: {
-      slug: true,
-      updatedAt: true
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const api = process.env.API_URL || "http://localhost:3001";
+  
+  try {
+    const res = await fetch(`${api}/seo/sitemap`, { next: { revalidate: 3600 } });
+    if (!res.ok) {
+      return [
+        { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
+        { url: `${base}/discover`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+      ];
     }
-  });
+    
+    const data = await res.json() as { artists: Row[]; artworks: Row[] };
+    const now = new Date();
 
-  // Get published artworks
-  const artworks = await prisma.artwork.findMany({
-    where: {
-      status: "PUBLISHED",
-      visibility: "PUBLIC",
-      suppressed: false,
-      moderationStatus: "APPROVED"
-    },
-    select: {
-      slug: true,
-      updatedAt: true
-    }
-  });
+    const home: MetadataRoute.Sitemap = [
+      { url: base, lastModified: now, changeFrequency: "daily", priority: 1 },
+      { url: `${base}/discover`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    ];
 
-  const items: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 1
-    },
-    {
-      url: `${baseUrl}/discover`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9
-    },
-    ...artists.map(artist => ({
-      url: `${baseUrl}/artist/${artist.slug}`,
-      lastModified: artist.updatedAt,
+    const artists = (data.artists || []).map(r => ({
+      url: `${base}/artist/${r.slug}`,
+      lastModified: new Date(r.updatedAt),
       changeFrequency: "weekly" as const,
-      priority: 0.8
-    })),
-    ...artworks.map(artwork => ({
-      url: `${baseUrl}/artwork/${artwork.slug}`,
-      lastModified: artwork.updatedAt,
-      changeFrequency: "weekly" as const,
-      priority: 0.7
-    }))
-  ];
+      priority: 0.6,
+    }));
 
-  return items;
+    const artworks = (data.artworks || []).map(r => ({
+      url: `${base}/artwork/${r.slug}`,
+      lastModified: new Date(r.updatedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+
+    return [...home, ...artists, ...artworks];
+  } catch (error) {
+    // Fallback sitemap if API is unavailable
+    return [
+      { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
+      { url: `${base}/discover`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    ];
+  }
 }

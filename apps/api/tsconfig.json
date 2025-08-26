@@ -2,7 +2,8 @@
         "extends": "@artfromromania/tsconfig/tsconfig.node.json",
         "compilerOptions": {
                 "outDir": "dist",
-                "module": "CommonJS"
+                "module": "CommonJS",
+                "jsx": "react-jsx"
         },
         "include": ["src/**/*"],
         "exclude": ["node_modules", "dist"]

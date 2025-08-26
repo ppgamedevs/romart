@@ -43,8 +43,8 @@ export default async function CartPage() {
   }
 
   // Calculate totals
-  const subtotal = cart.items.reduce((sum, item) => sum + (item.unitAmount * item.quantity), 0);
-  const hasDigitalOnly = cart.items.every(item => item.kind === "DIGITAL");
+  const subtotal = cart.items.reduce((sum: number, item: any) => sum + (item.unitAmount * item.quantity), 0);
+  const hasDigitalOnly = cart.items.every((item: any) => item.kind === "DIGITAL");
   const shipping = hasDigitalOnly ? 0 : parseInt(process.env.FLAT_SHIPPING_EUR || "1500", 10);
   const total = subtotal + shipping;
 

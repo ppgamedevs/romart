@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@artfromromania/db"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@artfromromania/db"
 import { z } from "zod"
 import crypto from "crypto"
 

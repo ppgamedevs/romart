@@ -1,5 +1,5 @@
-import { Metadata } from "next";
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import { getArtworkBySlug, getRelatedArtworks } from "@artfromromania/db";
 import { visualArtworkJsonLd } from "@artfromromania/shared";
 import { ArtworkGallery } from "@/components/pdp/ArtworkGallery";
@@ -14,8 +14,20 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ShoppingCart, Download, Palette, Calendar, Ruler, Frame } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import SimilarGrid, { SimilarGridSkeleton } from "@/components/recs/SimilarGrid";
+import MoreFromArtist, { MoreFromArtistSkeleton } from "@/components/recs/MoreFromArtist";
+import SeoJsonLd from "@/components/SeoJsonLd";
+import { canonical, ldVisualArtwork } from "@/lib/seo";
 
 export const revalidate = 300; // 5 minutes
+
+async function fetchArtwork(slug: string) {
+  const api = process.env.API_URL || "http://localhost:3001";
+  const r = await fetch(`${api}/public/artwork/by-slug/${slug}`, { cache: "no-store" });
+  if (!r.ok) return null;
+  return r.json();
+}
 
 interface ArtworkPageProps {
   params: Promise<{
@@ -25,31 +37,34 @@ interface ArtworkPageProps {
 
 export async function generateMetadata({ params }: ArtworkPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const artwork = await getArtworkBySlug(slug);
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const a = await fetchArtwork(slug);
   
-  if (!artwork) {
-    return {
-      title: "Artwork Not Found",
-    };
+  if (!a) {
+    return { title: "Artwork not found — Art from Romania" };
   }
-
-  const primaryImage = artwork.images.find((img: any) => img.position === 0) || artwork.images[0];
-  const description = `${artwork.title} by ${artwork.artist.displayName}. ${artwork.medium ? `${artwork.medium}.` : ""} ${artwork.year ? `Created in ${artwork.year}.` : ""}`;
+  
+  const url = canonical(base, `/artwork/${a.slug}`);
+  const title = `${a.title} — ${a.artist?.displayName || "Romanian Art"}`;
+  const desc = a.description || `${a.title} — ${a.medium || "artwork"} by ${a.artist?.displayName || "artist"}.`;
+  const ogImg = a.heroUrl || a.thumbUrl || process.env.NEXT_PUBLIC_OG_IMAGE_FALLBACK;
 
   return {
-    title: `${artwork.title} by ${artwork.artist.displayName} | RomArt`,
-    description,
+    title,
+    description: desc,
+    alternates: { canonical: url },
     openGraph: {
-      title: `${artwork.title} by ${artwork.artist.displayName}`,
-      description,
       type: "website",
-      images: primaryImage ? [primaryImage.url] : [],
+      url,
+      title,
+      description: desc,
+      images: ogImg ? [{ url: ogImg, width: 1200, height: 630, alt: title }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${artwork.title} by ${artwork.artist.displayName}`,
-      description,
-      images: primaryImage ? [primaryImage.url] : [],
+      title, 
+      description: desc,
+      images: ogImg ? [ogImg] : undefined,
     },
   };
 }
@@ -60,6 +75,11 @@ export default async function ArtworkPage({ params }: ArtworkPageProps) {
 
   if (!artwork) {
     notFound();
+  }
+
+  // Canonical slug enforcement
+  if (slug !== artwork.slug) {
+    redirect(`/artwork/${artwork.slug}`);
   }
 
   const primaryImage = artwork.images.find((img: any) => img.isPrimary) || artwork.images[0];
@@ -110,37 +130,32 @@ export default async function ArtworkPage({ params }: ArtworkPageProps) {
     { name: artwork.title, url: `/artwork/${artwork.slug}` }
   ];
 
+  // SEO JSON-LD
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const url = canonical(base, `/artwork/${artwork.slug}`);
+  const ld = ldVisualArtwork({
+    url, 
+    name: artwork.title, 
+    description: artwork.description,
+    image: [artwork.heroUrl, artwork.thumbUrl].filter(Boolean),
+    medium: artwork.medium,
+    widthCm: artwork.widthCm, 
+    heightCm: artwork.heightCm, 
+    depthCm: artwork.depthCm,
+    priceMinor: artwork.priceMinor, 
+    currency: artwork.currency, 
+    available: artwork.available,
+    artist: { 
+      name: artwork.artist?.displayName, 
+      url: canonical(base, `/artist/${artwork.artist?.slug}`) 
+    }
+  });
+
   return (
     <>
       {/* JSON-LD Structured Data */}
       <BreadcrumbsJsonLd items={breadcrumbItems} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            visualArtworkJsonLd({
-              artwork: {
-                ...artwork,
-                widthCm: artwork.widthCm ? Number(artwork.widthCm) : null,
-                heightCm: artwork.heightCm ? Number(artwork.heightCm) : null,
-                depthCm: artwork.depthCm ? Number(artwork.depthCm) : null,
-                artist: artwork.artist,
-                images: artwork.images.map((img: any) => ({
-                  url: img.url,
-                  alt: img.alt || undefined
-                })),
-                editions: artwork.editions
-              },
-              primaryImageUrl: primaryImage?.url || "",
-              offer: {
-                price,
-                currency: "EUR",
-                availability
-              }
-            })
-          )
-        }}
-      />
+      <SeoJsonLd data={ld} />
 
       <div className="container mx-auto py-8 space-y-8">
         {/* Breadcrumbs */}
@@ -249,6 +264,22 @@ export default async function ArtworkPage({ params }: ArtworkPageProps) {
             </div>
           </div>
         )}
+
+        {/* Recommendations */}
+        <Suspense fallback={<SimilarGridSkeleton />}>
+          <SimilarGrid 
+            artworkId={artwork.id} 
+            currency={artwork.currency || "EUR"} 
+          />
+        </Suspense>
+
+        <Suspense fallback={<MoreFromArtistSkeleton />}>
+          <MoreFromArtist 
+            artistId={artwork.artistId} 
+            excludeId={artwork.id}
+            currency={artwork.currency || "EUR"} 
+          />
+        </Suspense>
       </div>
     </>
   );

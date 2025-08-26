@@ -1,6 +1,4 @@
-// import createNextIntlPlugin from 'next-intl/plugin';
-
-// const withNextIntl = createNextIntlPlugin();
+import withSentryConfig from "@sentry/nextjs/config";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -77,4 +75,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, { silent: true });

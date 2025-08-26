@@ -1,0 +1,71 @@
+name: DB Backup to R2
+on:
+  schedule: [{ cron: "15 2 * * *" }]   # zilnic 02:15 UTC
+  workflow_dispatch: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    # Environment variables for secrets - these are safe to use at job level
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clients
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client xz-utils jq
+          curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+          unzip -q awscliv2.zip && sudo ./aws/install
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.xz | tar -xJf - --strip-components=1 && sudo mv age /usr/local/bin/
+      - name: Validate secrets
+        run: |
+          if [ -z "$BACKUP_BUCKET" ]; then
+            echo "Error: BACKUP_BUCKET secret is not configured"
+            exit 1
+          fi
+          if [ -z "$R2_ACCOUNT_ID" ]; then
+            echo "Error: R2_ACCOUNT_ID secret is not configured"
+            exit 1
+          fi
+          if [ -z "$R2_ACCESS_KEY_ID" ]; then
+            echo "Error: R2_ACCESS_KEY_ID secret is not configured"
+            exit 1
+          fi
+          if [ -z "$R2_SECRET_ACCESS_KEY" ]; then
+            echo "Error: R2_SECRET_ACCESS_KEY secret is not configured"
+            exit 1
+          fi
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Error: DATABASE_URL secret is not configured"
+            exit 1
+          fi
+          if [ -z "$AGE_RECIPIENT" ]; then
+            echo "Error: AGE_RECIPIENT secret is not configured"
+            exit 1
+          fi
+          echo "All required secrets are configured"
+      - name: Export env
+        run: |
+          echo "R2_ENDPOINT=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" >> $GITHUB_ENV
+      - name: Run backup
+        run: |
+          export BACKUP_PREFIX="db/"
+          export R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "Using backup bucket: $BACKUP_BUCKET"
+          bash ops/backup/backup_db.sh
+      - name: Prune old backups (retention)
+        run: |
+          export BACKUP_RETENTION_DAYS="30"
+          export R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "Pruning backups from bucket: $BACKUP_BUCKET"
+          cutoff=$(date -u -d "$BACKUP_RETENTION_DAYS days ago" +"%Y%m%dT%H%M%SZ" || date -u -v -${BACKUP_RETENTION_DAYS}d +"%Y%m%dT%H%M%SZ")
+          aws s3 ls "s3://${BACKUP_BUCKET}/db/" --endpoint-url "$R2_ENDPOINT" | while read -r dt time size key; do
+            ts=$(echo "$key" | grep -oE '[0-9]{8}T[0-9]{6}Z')
+            [[ -n "$ts" && "$ts" < "$cutoff" ]] && aws s3 rm "s3://${BACKUP_BUCKET}/db/$key" --endpoint-url "$R2_ENDPOINT"
+          done

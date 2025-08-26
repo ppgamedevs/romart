@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Palette, Image, Package } from "lucide-react"
 import Link from "next/link"
 import { formatPrice, formatDimensions } from "@artfromromania/shared"
-import { ArtworkStatus, ArtworkKind } from "@prisma/client"
+import { ArtworkStatus, ArtworkKind } from "@artfromromania/db"
 
 interface ArtworksPageProps {
   searchParams: Promise<{
@@ -119,7 +119,7 @@ async function ArtworksList({ filter }: { filter?: string }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {artworks.map((artwork) => (
+      {artworks.map((artwork: any) => (
         <Card key={artwork.id} className="group hover:shadow-lg transition-shadow">
           <CardContent className="p-0">
             <div className="relative aspect-square">

@@ -1,0 +1,64 @@
+name: Nightly Recommendations Processing
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  process-recommendations:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      API_URL: ${{ secrets.API_URL }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Generate Prisma client
+        run: pnpm -F db prisma generate
+
+      - name: Build similar artworks
+        run: |
+          node -e "
+          const { buildSimilarAll } = require('./apps/api/src/jobs/recs-nightly.ts');
+          buildSimilarAll().then(() => console.log('Similar artworks built successfully'));
+          "
+
+      - name: Build trending scores
+        run: |
+          node -e "
+          const { buildTrendingDay } = require('./apps/api/src/jobs/recs-nightly.ts');
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          buildTrendingDay(yesterday).then(() => console.log('Trending scores built successfully'));
+          "
+
+      - name: Notify completion
+        if: always()
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          text: |
+            Nightly recommendations processing completed
+            - Job: ${{ job.name }}
+            - Status: ${{ job.status }}
+            - Run: ${{ github.run_number }}

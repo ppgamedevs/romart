@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Get entity details for each item
     const itemsWithDetails = await Promise.all(
-      results.map(async (item) => {
+      results.map(async (item: any) => {
         let entity = null
         
         if (item.entityType === "ARTWORK") {

@@ -54,7 +54,7 @@ export default async function sitemap({ params }: { params: Promise<{ locale: st
   ];
 
   // Add artists with locale-specific slugs
-  artists.forEach(artist => {
+  artists.forEach((artist: any) => {
     const slug = locale === "ro" ? artist.slugRo : artist.slugEn;
     if (slug) {
       items.push({
@@ -67,7 +67,7 @@ export default async function sitemap({ params }: { params: Promise<{ locale: st
   });
 
   // Add artworks with locale-specific slugs
-  artworks.forEach(artwork => {
+  artworks.forEach((artwork: any) => {
     const slug = locale === "ro" ? artwork.slugRo : artwork.slugEn;
     if (slug) {
       items.push({

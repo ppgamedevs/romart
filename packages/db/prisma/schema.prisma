@@ -261,6 +261,10 @@ model User {
 	curatedInquiries Inquiry[] @relation("CuratorInquiries")
 	favorites  Favorite[]
 	curatorBadges CuratorBadge[] @relation("CuratorBadges")
+	notifPrefs UserNotifPref?
+	notifications Notification[]
+	partners Partner[]
+	creatorCodes CreatorCode[]
 
 	@@map("users")
 }
@@ -311,6 +315,7 @@ model Artist {
 	images          Image[]
 	inquiries       Inquiry[]
 	stats           ArtistStat?
+	artistShareLinks ArtistShareLink[]
 
 	@@map("artists")
 }
@@ -445,6 +450,7 @@ model Order {
 	// Admin fields
 	refundedAmount     Int             @default(0)
 	canceledAt         DateTime?
+	artistShareLinkId  String?         // Optional link to artist share link for tracking
 	createdAt          DateTime        @default(now())
 	updatedAt          DateTime        @updatedAt
 
@@ -453,6 +459,7 @@ model Order {
 	items      OrderItem[]
 	shippingAddress Address? @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
 	billingAddress  Address? @relation("OrderBillingAddress", fields: [billingAddressId], references: [id])
+	artistShareLink ArtistShareLink? @relation(fields: [artistShareLinkId], references: [id])
 	invoice    Invoice?
 	digitalEntitlements DigitalEntitlement[]
 	fulfillmentOrders FulfillmentOrder[]
@@ -1324,4 +1331,350 @@ model CollectionItem {
   @@map("collection_items")
 }
 
+// =============================================================================
+// Affiliates & Referrals System
+// =============================================================================
 
+enum ReferralKind {
+  AFFILIATE
+  CREATOR
+}
+
+enum ReferralStatus {
+  ACTIVE
+  PAUSED
+  BANNED
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAYABLE
+  PAID
+  VOID
+}
+
+model Partner {
+  id           String         @id @default(cuid())
+  userId       String?        // if they have an account
+  kind         ReferralKind   @default(AFFILIATE)
+  name         String
+  slug         String         @unique
+  status       ReferralStatus @default(ACTIVE)
+  defaultBps   Int            @default(1000) // basis points (10%)
+  connectId    String?        // Stripe account id
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  // Relations
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  links        ReferralLink[]
+  codes        CreatorCode[]
+  payouts      CommissionPayout[]
+  conversions  ReferralConversion[]
+  
+  @@index([userId])
+  @@index([status])
+  @@map("partners")
+}
+
+model ReferralLink {
+  id        String   @id @default(cuid())
+  partnerId String
+  code      String   @unique // e.g., ABC123
+  landing   String?  // /artist/slug or /artwork/slug or home
+  createdAt DateTime @default(now())
+  
+  // Relations
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  visits    ReferralVisit[]
+  conversions ReferralConversion[]
+  
+  @@index([partnerId])
+  @@index([code])
+  @@map("referral_links")
+}
+
+model CreatorCode {
+  id          String   @id @default(cuid())
+  partnerId   String?  // if a curator has a code
+  artistId    String?  // code issued by artist (one of max 5)
+  code        String   @unique
+  discountBps Int      @default(1000) // buyer discount
+  bonusBps    Int      @default(500)  // bonus for artist/curator
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  partner     Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  artist      User?    @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  conversions ReferralConversion[]
+  visits      ReferralVisit[]
+  
+  @@index([partnerId])
+  @@index([artistId])
+  @@index([code])
+  @@map("creator_codes")
+}
+
+model ReferralVisit {
+  id        String   @id @default(cuid())
+  linkId    String?
+  codeId    String?
+  ipHash    String?
+  uaHash    String?
+  source    String?  // instagram/youtube/...
+  utm       Json?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  link      ReferralLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  code      CreatorCode? @relation(fields: [codeId], references: [id], onDelete: SetNull)
+  
+  @@index([linkId])
+  @@index([codeId])
+  @@index([ipHash, uaHash, createdAt])
+  @@map("referral_visits")
+}
+
+model ReferralConversion {
+  id              String           @id @default(cuid())
+  orderId         String           @unique
+  partnerId       String?
+  linkId          String?
+  codeId          String?
+  kind            ReferralKind
+  currency        String           @default("EUR")
+  subtotalMinor   Int
+  commissionMinor Int              @default(0)
+  eurMinor        Int?             // for unified reporting
+  status          CommissionStatus @default(PENDING)
+  reason          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  partner         Partner?         @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  link            ReferralLink?    @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  code            CreatorCode?     @relation(fields: [codeId], references: [id], onDelete: SetNull)
+  
+  @@index([partnerId])
+  @@index([linkId])
+  @@index([codeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("referral_conversions")
+}
+
+model CommissionPayout {
+  id              String   @id @default(cuid())
+  partnerId       String
+  amountMinor     Int
+  currency        String   @default("EUR")
+  stripePayoutId  String?
+  periodStart     DateTime
+  periodEnd       DateTime
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  
+  @@index([partnerId])
+  @@index([stripePayoutId])
+  @@map("commission_payouts")
+}
+
+// =============================================================================
+// Notification System
+// =============================================================================
+
+enum NotifTopic {
+  AUTH
+  ORDER
+  INVOICE
+  SHIPPING
+  CURATOR
+  COMMISSION
+  PAYOUT
+  CART
+  SYSTEM
+  AFFILIATE
+}
+
+enum NotifChannel {
+  EMAIL
+  INAPP
+}
+
+enum NotifStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELED
+}
+
+model UserNotifPref {
+  userId      String @id
+  emailOrder  Boolean @default(true)
+  emailCurator Boolean @default(true)
+  emailAuth   Boolean @default(true)
+  emailCart   Boolean @default(true)
+  inappOrder  Boolean @default(true)
+  inappCurator Boolean @default(true)
+  inappAuth   Boolean @default(true)
+  inappCart   Boolean @default(true)
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_notif_prefs")
+}
+
+model Notification {
+  id        String       @id @default(cuid())
+  userId    String?
+  email     String
+  topic     NotifTopic
+  channel   NotifChannel
+  template  String       // email template name
+  payload   Json         // template payload
+  status    NotifStatus  @default(PENDING)
+  sentAt    DateTime?
+  createdAt DateTime     @default(now())
+  
+  // Relations
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  emailLogs EmailLog[]
+  
+  @@index([userId, topic, createdAt])
+  @@index([status, createdAt])
+  @@map("notifications")
+}
+
+model EmailLog {
+  id         String   @id @default(cuid())
+  notifId    String
+  to         String
+  subject    String
+  provider   String   // "RESEND", "SENDGRID", etc.
+  providerId String?  // external provider ID
+  status     String   // "sent", "error", "bounced"
+  error      String?
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  notification Notification @relation(fields: [notifId], references: [id], onDelete: Cascade)
+  
+  @@index([notifId])
+  @@index([provider, status])
+  @@map("email_logs")
+}
+
+// =============================================================================
+// Artist Share Links (Analytics Tracking)
+// =============================================================================
+
+model ArtistShareLink {
+  id         String   @id @default(cuid())
+  artistId   String
+  slug       String   @unique         // ex: a7X9Qp
+  landing    String?                  // ex: /artist/john-doe sau /artwork/sunrise
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  artist     Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  visits     ArtistShareVisit[]
+  conversions ArtistShareConversion[]
+  orders     Order[]
+  
+  @@index([artistId, createdAt])
+  @@map("artist_share_links")
+}
+
+model ArtistShareVisit {
+  id        String   @id @default(cuid())
+  linkId    String
+  source    String?            // instagram/tiktok/...
+  utm       Json?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  link      ArtistShareLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  
+  @@index([linkId, createdAt])
+  @@map("artist_share_visits")
+}
+
+model ArtistShareConversion {
+  id            String   @id @default(cuid())
+  linkId        String
+  orderId       String   @unique
+  subtotalMinor Int
+  currency      String   @default("EUR")
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  link          ArtistShareLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  
+  @@index([linkId, createdAt])
+  @@map("artist_share_conversions")
+}
+
+// =============================================================================
+// Recommendations & Personalization
+// =============================================================================
+
+enum InteractionKind {
+  VIEW
+  FAVORITE
+  ADD_TO_CART
+  PURCHASE
+}
+
+model Interaction {
+  id         String           @id @default(cuid())
+  userId     String?
+  artworkId  String
+  kind       InteractionKind
+  weight     Int              @default(1)
+  createdAt  DateTime         @default(now())
+  
+  @@index([artworkId, createdAt])
+  @@index([userId, createdAt])
+  @@map("interactions")
+}
+
+model SimilarArtwork {
+  // top-N precomputat (nightly)
+  artworkId  String
+  similarId  String
+  score      Float
+  createdAt  DateTime         @default(now())
+  
+  @@id([artworkId, similarId])
+  @@index([artworkId, score])
+  @@map("similar_artworks")
+}
+
+model TrendingDaily {
+  // scor zilnic per artwork
+  day        DateTime         // YYYY-MM-DD 00:00 UTC
+  artworkId  String
+  score      Float
+  
+  @@id([day, artworkId])
+  @@index([day, score])
+  @@map("trending_daily")
+}
+
+model UserPreference {
+  // sumar derivat, opțional
+  userId     String           @id
+  topMediums String[]         // ["painting","photography"]
+  priceP50   Int              // mediană (minor)
+  updatedAt  DateTime         @updatedAt
+  
+  @@map("user_preferences")
+}

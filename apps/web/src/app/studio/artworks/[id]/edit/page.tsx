@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Save, Eye } from "lucide-react"
 import Link from "next/link"
-import { ArtworkStatus, ArtworkKind } from "@prisma/client"
+import { ArtworkStatus, ArtworkKind } from "@artfromromania/db"
 import { canPublish } from "@artfromromania/shared"
 import { DetailsTab } from "./components/DetailsTab"
 import { ImagesTab } from "./components/ImagesTab"
@@ -110,8 +110,8 @@ export default async function EditArtworkPage({ params }: EditArtworkPageProps) 
       status: artwork.status,
     },
     imagesCount: artwork.images.length,
-    hasPrimaryImage: artwork.images.some(img => img.position === 0),
-    editions: artwork.editions.map(ed => ({
+    hasPrimaryImage: artwork.images.some((img: any) => img.position === 0),
+    editions: artwork.editions.map((ed: any) => ({
       unitAmount: ed.unitAmount,
       runSize: ed.runSize || undefined,
       available: ed.available || undefined,

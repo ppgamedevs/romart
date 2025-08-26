@@ -15,7 +15,7 @@ import {
   suggestPrintEditionsFromOriginal
 } from "@artfromromania/shared"
 import { createArtworkModerationItem } from "@/lib/moderation"
-import { ArtworkStatus, ArtworkKind, EditionType } from "@prisma/client"
+import { ArtworkStatus, ArtworkKind, EditionType } from "@artfromromania/db"
 
 // Simple rate limiter (temporary)
 const artworkLimiter = {
@@ -140,7 +140,7 @@ export async function saveDetails(artworkId: string, formData: FormData) {
 
   const finalSlug = generateUniqueSlug(
     proposedSlug,
-    existingSlugs.map(a => a.slug)
+    existingSlugs.map((a: any) => a.slug)
   )
 
   // Update artwork
@@ -331,8 +331,8 @@ export async function publishArtwork(artworkId: string) {
       status: fullArtwork.status,
     },
     imagesCount: fullArtwork.images.length,
-    hasPrimaryImage: fullArtwork.images.some(img => img.position === 0),
-    editions: fullArtwork.editions.map(ed => ({
+    hasPrimaryImage: fullArtwork.images.some((img: any) => img.position === 0),
+    editions: fullArtwork.editions.map((ed: any) => ({
       unitAmount: ed.unitAmount,
       runSize: ed.runSize || undefined,
       available: ed.available || undefined,

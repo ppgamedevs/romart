@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth/config"
 import { prisma } from "@artfromromania/db"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@artfromromania/db"
 
 export async function POST(request: NextRequest) {
 	try {

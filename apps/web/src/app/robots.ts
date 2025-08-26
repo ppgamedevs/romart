@@ -1,24 +1,18 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://artfromromania.com";
-
+  const base = process.env.SITE_URL || "http://localhost:3000";
   return {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/discover", "/artist/", "/artwork/"],
         disallow: [
-          "/studio/",
-          "/admin/",
-          "/api/",
-          "/account/",
-          "/sign-in",
-          "/sign-up",
-          "/checkout/"
-        ]
-      }
+          "/admin", "/studio", "/dashboard", "/api", "/sign-in", "/sign-out",
+          "/styleguide"
+        ],
+      },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`
+    sitemap: `${base}/sitemap.xml`,
   };
 }

@@ -1,9 +1,19 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { prisma } from "@artfromromania/db"
-import { Metadata } from "next"
+import type { Metadata } from "next"
+import SeoJsonLd from "@/components/SeoJsonLd";
+import { canonical, ldPerson, ldProfilePage } from "@/lib/seo";
 
 // ISR: Revalidate every 5 minutes
 export const revalidate = 300;
+
+async function fetchArtist(slug: string) {
+  const api = process.env.API_URL || "http://localhost:3001";
+  const r = await fetch(`${api}/public/artist/by-slug/${slug}`, { cache: "no-store" });
+  if (!r.ok) return null;
+  return r.json();
+}
+
 import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,43 +31,34 @@ interface ArtistPageProps {
 
 export async function generateMetadata({ params }: ArtistPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const artist = await prisma.artist.findUnique({
-    where: { slug: slug },
-    include: {
-      user: {
-        select: {
-          role: true
-        }
-      }
-    }
-  })
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const a = await fetchArtist(slug);
+  
+  if (!a) return { title: "Artist not found — Art from Romania" };
 
-  if (!artist || artist.user.role !== "ARTIST") {
-    return {
-      title: "Artist Not Found",
-      description: "The requested artist profile could not be found."
-    }
-  }
-
-  const location = [artist.locationCity, artist.locationCountry].filter(Boolean).join(", ")
-  const description = artist.bio || `Discover the work of ${artist.displayName}, a talented artist${location ? ` from ${location}` : ""}.`
+  const url = canonical(base, `/artist/${a.slug}`);
+  const title = `${a.displayName} — Romanian Artist`;
+  const desc = a.bio || `Discover works by ${a.displayName} on Art from Romania.`;
+  const ogImg = a.avatarUrl || process.env.NEXT_PUBLIC_OG_IMAGE_FALLBACK;
 
   return {
-    title: `${artist.displayName} - Artist Profile | RomArt`,
-    description,
-    openGraph: {
-      title: `${artist.displayName} - Artist Profile`,
-      description,
-      images: artist.avatarUrl ? [artist.avatarUrl] : [],
-      type: "profile",
+    title, 
+    description: desc,
+    alternates: { canonical: url },
+    openGraph: { 
+      type: "profile", 
+      url, 
+      title, 
+      description: desc, 
+      images: ogImg ? [{ url: ogImg }] : undefined 
     },
-    twitter: {
-      card: "summary",
-      title: `${artist.displayName} - Artist Profile`,
-      description,
-      images: artist.avatarUrl ? [artist.avatarUrl] : [],
+    twitter: { 
+      card: "summary_large_image", 
+      title, 
+      description: desc, 
+      images: ogImg ? [ogImg] : undefined 
     },
-  }
+  };
 }
 
 export default async function ArtistPage({ params }: ArtistPageProps) {
@@ -75,6 +76,11 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
 
   if (!artist) {
     notFound()
+  }
+
+  // Canonical slug enforcement
+  if (slug !== artist.slug) {
+    redirect(`/artist/${artist.slug}`);
   }
 
   // Fetch artworks separately to avoid TypeScript issues
@@ -104,35 +110,22 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
   // Type the socials object properly
   const socials = isSocialMedia(artist.socials) ? artist.socials : null;
 
-  // Generate JSON-LD structured data
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "name": artist.displayName,
-    "url": `https://romart.com/artist/${artist.slug}`,
-    "image": artist.avatarUrl,
-    "sameAs": [
-      socials?.website,
-      socials?.instagram ? `https://instagram.com/${socials.instagram}` : null,
-      socials?.facebook ? `https://facebook.com/${socials.facebook}` : null,
-      socials?.x ? `https://x.com/${socials.x}` : null,
-      socials?.tiktok ? `https://tiktok.com/@${socials.tiktok}` : null,
-      socials?.youtube ? `https://youtube.com/@${socials.youtube}` : null,
-    ].filter(Boolean),
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": artist.locationCity,
-      "addressCountry": artist.locationCountry,
-    },
-    "description": artist.bio,
-  }
+  // SEO JSON-LD
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const url = canonical(base, `/artist/${artist.slug}`);
+  const person = ldPerson({
+    url, 
+    name: artist.displayName, 
+    description: artist.bio, 
+    image: artist.avatarUrl,
+    sameAs: Array.isArray(artist.socials) ? artist.socials : undefined
+  });
+  const profile = ldProfilePage(url, person);
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <SeoJsonLd data={person} />
+      <SeoJsonLd data={profile} />
       
       <div className="min-h-screen bg-background">
         {/* Hero Section */}
