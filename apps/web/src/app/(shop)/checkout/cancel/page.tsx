@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { XCircle } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: "Payment Cancelled | RomArt",
   description: "Your payment was cancelled",

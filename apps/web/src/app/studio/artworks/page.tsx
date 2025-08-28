@@ -10,6 +10,8 @@ import Link from "next/link"
 import { formatPrice, formatDimensions } from "@artfromromania/shared"
 import { ArtworkStatus, ArtworkKind } from "@artfromromania/db"
 
+export const dynamic = 'force-dynamic'
+
 interface ArtworksPageProps {
   searchParams: Promise<{
     filter?: string

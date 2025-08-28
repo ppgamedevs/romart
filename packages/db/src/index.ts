@@ -6,7 +6,16 @@ declare global {
 	var __prisma: PrismaClient | undefined
 }
 
-export const prisma = globalThis.__prisma || new PrismaClient()
+// Use direct URL to avoid pooler issues
+const databaseUrl = process.env.DATABASE_URL?.replace('pooler.', 'db.');
+
+export const prisma = globalThis.__prisma || new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl
+    }
+  }
+})
 
 if (process.env.NODE_ENV !== "production") {
 	globalThis.__prisma = prisma

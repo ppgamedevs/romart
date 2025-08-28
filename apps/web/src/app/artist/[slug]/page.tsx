@@ -50,13 +50,11 @@ export async function generateMetadata({ params }: ArtistPageProps): Promise<Met
       url, 
       title, 
       description: desc, 
-      images: ogImg ? [{ url: ogImg }] : undefined 
     },
     twitter: { 
       card: "summary_large_image", 
       title, 
       description: desc, 
-      images: ogImg ? [ogImg] : undefined 
     },
   };
 }
@@ -113,12 +111,12 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
   // SEO JSON-LD
   const base = process.env.SITE_URL || "http://localhost:3000";
   const url = canonical(base, `/artist/${artist.slug}`);
-  const person = ldPerson({
+    const person = ldPerson({ 
     url, 
     name: artist.displayName, 
-    description: artist.bio, 
-    image: artist.avatarUrl,
-    sameAs: Array.isArray(artist.socials) ? artist.socials : undefined
+    description: artist.bio || undefined, 
+    image: artist.avatarUrl || undefined,
+    sameAs: Array.isArray(artist.socials) ? artist.socials.filter((s): s is string => typeof s === 'string') : undefined
   });
   const profile = ldProfilePage(url, person);
 

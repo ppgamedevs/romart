@@ -6,6 +6,8 @@ import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 
+export const dynamic = 'force-dynamic'
+
 const inter = Inter({ 
 	subsets: ["latin"],
 	display: "swap",

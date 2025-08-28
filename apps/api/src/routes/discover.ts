@@ -16,10 +16,10 @@ export default async function routes(app: FastifyInstance) {
     const priceMin = q.min ? Math.max(0, parseInt(q.min, 10)) : undefined; // minor units
     const priceMax = q.max ? Math.max(0, parseInt(q.max, 10)) : undefined;
 
-    const where: any = { published: true };
+    const where: any = { status: "PUBLISHED" };
     if (medium) where.medium = medium;
     if (priceMin || priceMax) {
-      where.priceMinor = {
+      where.priceAmount = {
         ...(priceMin ? { gte: priceMin } : {}),
         ...(priceMax ? { lte: priceMax } : {}),
       };
@@ -34,8 +34,8 @@ export default async function routes(app: FastifyInstance) {
         artistId: true,
         slug: true,
         title: true,
-        thumbUrl: true,
-        priceMinor: true,
+        heroImageUrl: true,
+        priceAmount: true,
         medium: true,
         createdAt: true,
       },
@@ -77,9 +77,9 @@ export default async function routes(app: FastifyInstance) {
         .sort((a, b) => b.s - a.s)
         .map((x) => x.p);
     } else if (sort === "price_asc") {
-      pool.sort((a, b) => a.priceMinor - b.priceMinor);
+      pool.sort((a, b) => a.priceAmount - b.priceAmount);
     } else if (sort === "price_desc") {
-      pool.sort((a, b) => b.priceMinor - a.priceMinor);
+      pool.sort((a, b) => b.priceAmount - a.priceAmount);
     }
 
     const total = pool.length;

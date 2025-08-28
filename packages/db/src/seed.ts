@@ -1,6 +1,9 @@
 import { prisma } from "./index"
 import { UserRole, ArtworkStatus, ArtworkVisibility, ArtworkKind, EditionType, OrderStatus, PaymentProvider, OrderItemKind, PayoutStatus, PayoutProvider, KycStatus, KycDocumentType } from "@prisma/client"
 import * as argon2 from "argon2"
+import { seedPricing } from "./seed.pricing"
+import { seedCosting } from "./seed.costing"
+import { seedCollections } from "./seed.collections"
 
 async function main() {
 	console.log("🌱 Seeding database...")
@@ -134,8 +137,8 @@ async function main() {
 			status: ArtworkStatus.PUBLISHED,
 			visibility: ArtworkVisibility.PUBLIC,
 			heroImageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop",
-			priceAmount: 250000, // €2,500.00
-			priceCurrency: "EUR",
+			priceMinor: 250000, // €2,500.00
+			currency: "EUR",
 			kind: ArtworkKind.ORIGINAL
 		}
 	})
@@ -155,8 +158,8 @@ async function main() {
 			status: ArtworkStatus.PUBLISHED,
 			visibility: ArtworkVisibility.PUBLIC,
 			heroImageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop",
-			priceAmount: 0, // Editions have their own pricing
-			priceCurrency: "EUR",
+			priceMinor: 0, // Editions have their own pricing
+			currency: "EUR",
 			kind: ArtworkKind.EDITIONED
 		}
 	})
@@ -176,8 +179,8 @@ async function main() {
 			status: ArtworkStatus.PUBLISHED,
 			visibility: ArtworkVisibility.PUBLIC,
 			heroImageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop",
-			priceAmount: 15000, // €150.00
-			priceCurrency: "EUR",
+			priceMinor: 15000, // €150.00
+			currency: "EUR",
 			kind: ArtworkKind.DIGITAL
 		}
 	})
@@ -190,7 +193,7 @@ async function main() {
 			runSize: 50,
 			available: 48,
 			type: EditionType.PRINT,
-			unitAmount: 15000, // €150.00
+			priceMinor: 15000, // €150.00
 			currency: "EUR"
 		}
 	})
@@ -332,6 +335,15 @@ async function main() {
 			}
 		}
 	})
+
+	// Seed pricing rules
+	await seedPricing();
+
+	// Seed costing data
+	await seedCosting();
+	
+	// Seed collections
+	await seedCollections();
 
 	console.log("✅ Database seeded successfully!")
 	console.log(`📊 Created:`)

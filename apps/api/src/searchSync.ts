@@ -2,7 +2,7 @@ import { prisma } from "@artfromromania/db";
 import { toSearchDoc, indexOne, deleteOne, reindexAll } from "@artfromromania/search";
 import type { SearchArtworkDoc } from "@artfromromania/search";
 
-export async function fetchArtworkForSearch(artworkId: string) {
+export async function fetchArtworkForSearch(artworkId: string): Promise<any> {
   return await prisma.artwork.findUnique({
     where: { id: artworkId },
     include: {

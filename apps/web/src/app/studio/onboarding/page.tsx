@@ -2,6 +2,8 @@ import { getAuthSession } from "@/auth/utils"
 import { redirect } from "next/navigation"
 import { prisma } from "@artfromromania/db"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OnboardingPage() {
   const session = await getAuthSession()
   

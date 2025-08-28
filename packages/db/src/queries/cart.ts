@@ -93,7 +93,7 @@ export async function addItemToCart({
     }
 
     artistId = artwork.artistId;
-    unitAmount = artwork.priceAmount;
+    unitAmount = artwork.priceAmount || 0;
 
     // For ORIGINAL, force quantity to 1 and check for duplicates
     quantity = 1;
@@ -134,7 +134,7 @@ export async function addItemToCart({
     }
 
     artistId = edition.artwork.artistId;
-    unitAmount = edition.unitAmount;
+    unitAmount = edition.unitAmount || 0;
   }
 
   // Create cart item

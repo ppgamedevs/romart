@@ -1,5 +1,6 @@
 import "server-only";
 export const revalidate = 300;
+export const dynamic = 'force-dynamic'
 
 function eur(n:number){ return (n/100).toFixed(2)+" €"; }
 

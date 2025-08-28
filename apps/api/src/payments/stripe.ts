@@ -662,7 +662,7 @@ export async function cancelPaymentIntent(orderId: string) {
   return true;
 }
 
-export async function handlePaymentSuccess(paymentIntentId: string) {
+export async function handlePaymentSuccess(paymentIntentId: string): Promise<void> {
   const order = await prisma.order.findFirst({
     where: { providerIntentId: paymentIntentId },
     include: {
@@ -776,11 +776,9 @@ export async function handlePaymentSuccess(paymentIntentId: string) {
       }
     });
   }
-
-  return order;
 }
 
-async function createShipmentsForOrder(order: any) {
+async function createShipmentsForOrder(order: any): Promise<void> {
   // Get original items from the order
   const originalItems = order.items.filter((item: any) => item.kind === "ORIGINAL");
   
@@ -869,6 +867,8 @@ async function createShipmentsForOrder(order: any) {
     console.error("Failed to create shipments for order", order.id, error);
     throw error;
   }
+  
+  return;
 }
 
 async function processArtistPayouts(order: any) {

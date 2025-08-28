@@ -3,6 +3,8 @@ import { auth } from "@/auth/client";
 import { redirect } from "next/navigation";
 import { FulfillmentQueue } from "./FulfillmentQueue";
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: "Fulfillment | Studio | RomArt",
   description: "Manage print orders and fulfillment",

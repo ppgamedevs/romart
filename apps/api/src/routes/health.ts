@@ -1,15 +1,9 @@
 import { FastifyInstance } from "fastify";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@artfromromania/db";
 import Stripe from "stripe";
 
-// Use direct URL for API to avoid pooler issues
-const prisma = new PrismaClient({
-	datasources: {
-		db: {
-			url: process.env.DATABASE_URL?.replace('pooler.', 'db.')
-		}
-	}
-});
+// Use the shared prisma instance
+const directPrisma = prisma;
 
 // For now, we'll skip storage check until we have the storage package properly configured
 const storage = {
@@ -22,7 +16,7 @@ export default async function routes(app: FastifyInstance) {
     
     // Database check
     try { 
-      await prisma.$queryRaw`select 1`; 
+      await directPrisma.$queryRaw`select 1`; 
       out.deps.db = "ok"; 
     } catch { 
       out.ok = false; 
@@ -43,10 +37,12 @@ export default async function routes(app: FastifyInstance) {
     
     // Stripe check
     try {
-      if (process.env.HEALTH_STRIPE === "true") {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" as any });
+      if (process.env.HEALTH_STRIPE === "true" && process.env.STRIPE_SECRET_KEY) {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" as any });
         await stripe.balance.retrieve();
         out.deps.stripe = "ok";
+      } else {
+        out.deps.stripe = "not_configured";
       }
     } catch { 
       out.ok = false; 

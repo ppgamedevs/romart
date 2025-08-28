@@ -15,6 +15,7 @@ enum UserRole {
 	ADMIN
 	ARTIST
 	BUYER
+	CURATOR
 }
 
 enum AddressType {
@@ -51,6 +52,18 @@ enum ArtworkKind {
 	ORIGINAL
 	EDITIONED
 	DIGITAL
+}
+
+enum ProductMedium {
+	PAINTING
+	DRAWING
+	PHOTOGRAPHY
+	DIGITAL
+}
+
+enum ProductType {
+	ORIGINAL
+	PRINT
 }
 
 enum ImageKind {
@@ -95,6 +108,7 @@ enum PayoutStatus {
 	PAID
 	FAILED
 	REVERSED
+	PROCESSING
 }
 
 enum PayoutProvider {
@@ -230,6 +244,28 @@ enum MilestoneStatus {
   CANCELED
 }
 
+enum PriceRounding {
+	NONE
+	END_00
+	END_90
+	END_99
+}
+
+enum CampaignScope { 
+	GLOBAL 
+	MEDIUM 
+	ARTIST 
+	ARTWORK 
+	EDITION_KIND 
+}
+
+enum EditionKind { 
+	ORIGINAL 
+	CANVAS 
+	METAL 
+	PHOTO 
+}
+
 model User {
 	id           String   @id @default(cuid())
 	email        String?  @unique
@@ -265,6 +301,9 @@ model User {
 	notifications Notification[]
 	partners Partner[]
 	creatorCodes CreatorCode[]
+	curatorProfile CuratorProfile?
+	tickets Ticket[] @relation("CustomerTickets")
+	messages Message[]
 
 	@@map("users")
 }
@@ -316,6 +355,7 @@ model Artist {
 	inquiries       Inquiry[]
 	stats           ArtistStat?
 	artistShareLinks ArtistShareLink[]
+	tickets         Ticket[]
 
 	@@map("artists")
 }
@@ -336,10 +376,17 @@ model Artwork {
 	status         ArtworkStatus     @default(DRAFT)
 	visibility     ArtworkVisibility @default(PRIVATE)
 	heroImageUrl   String?
-	priceAmount    Int
+	priceAmount    Int?
 	priceCurrency  String            @default("EUR")
 	kind           ArtworkKind
 	publishedAt    DateTime?
+	// Pricing fields
+	priceMinor     Int?              // preț listat (pentru ORIGINAL sau PRINT ed. unică)
+	currency       String?           @default("EUR")
+	weightKg       Decimal?
+	published      Boolean           @default(false)
+	onSale         Boolean           @default(false)
+	saleMinor      Int?              // optional sale price (<= priceMinor)
 	// Moderation fields
 	moderationStatus ModerationStatus @default(PENDING)
 	contentRating    ContentRating    @default(SAFE)
@@ -366,6 +413,7 @@ model Artwork {
 	stats     ArtworkStat?
 	badges    CuratorBadge[]
 	collectionItems CollectionItem[]
+	tickets   Ticket[]
 
 	@@index([artistId, status])
 	@@index([moderationStatus, suppressed, contentRating])
@@ -379,7 +427,7 @@ model Edition {
 	runSize          Int?
 	available        Int?
 	type             EditionType
-	unitAmount       Int
+	unitAmount       Int?
 	currency         String       @default("EUR")
 	downloadableUrl  String?
 	// NEW optional fields for prints:
@@ -392,6 +440,14 @@ model Edition {
 	fileBytes        Int?          // file size in bytes
 	contentType      String?       // MIME type
 	checksumSha256   String?       // SHA256 hash for integrity
+	// Pricing fields
+	kind             String?       // "ORIGINAL" | "CANVAS" | "METAL" | "PHOTO"
+	sizeLabel        String?       // ex: "30x40", "50x70"
+	editionSize      Int?          // ex: 25 (pentru printuri numerotate)
+	priceMinor       Int?          // dacă setat, override pentru cotație
+	onSale           Boolean       @default(false)
+	saleMinor        Int?
+	active           Boolean       @default(true)
 	createdAt        DateTime     @default(now())
 	updatedAt        DateTime     @updatedAt
 
@@ -1302,17 +1358,26 @@ model CuratorBadge {
 }
 
 model CuratedCollection {
-  id          String  @id @default(cuid())
-  slug        String  @unique
-  title       Json    // {en:"Abstract Highlights", ro:"Selecții Abstracte"}
-  description Json?
-  coverKey    String?
-  isPublic    Boolean @default(true)
-  createdAt   DateTime @default(now())
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  title         String
+  subtitle      String?
+  description   String?
+  coverImageUrl String?
+  heroTone      String  @default("DARK")  // DARK | LIGHT
+  curatorId     String?                   // link la CuratorProfile
+  curator       CuratorProfile? @relation(fields:[curatorId], references:[id])
+  isFeatured    Boolean @default(false)
+  sortIndex     Int     @default(0)
+  publishedAt   DateTime?
+  isPublic      Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
   // Relations
-  items       CollectionItem[]
+  items         CollectionItem[]
   
+  @@index([isFeatured, sortIndex])
   @@map("curated_collections")
 }
 
@@ -1321,6 +1386,8 @@ model CollectionItem {
   collectionId String
   artworkId    String
   order        Int     @default(0)
+  sortIndex    Int     @default(0)
+  addedAt      DateTime @default(now())
   createdAt    DateTime @default(now())
   
   // Relations
@@ -1328,6 +1395,7 @@ model CollectionItem {
   artwork      Artwork           @relation(fields: [artworkId], references: [id], onDelete: Cascade)
   
   @@unique([collectionId, artworkId])
+  @@index([collectionId, sortIndex])
   @@map("collection_items")
 }
 
@@ -1352,6 +1420,8 @@ enum CommissionStatus {
   PAYABLE
   PAID
   VOID
+  EARNED
+  REVERSED
 }
 
 model Partner {
@@ -1677,4 +1747,328 @@ model UserPreference {
   updatedAt  DateTime         @updatedAt
   
   @@map("user_preferences")
+}
+
+// =============================================================================
+// Curator System & Support Tickets
+// =============================================================================
+
+enum TicketType {
+  GENERAL_INQUIRY
+  ARTWORK_QUESTION
+  TECHNICAL_SUPPORT
+  BILLING_QUESTION
+  ARTIST_SUPPORT
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  WAITING_CUSTOMER
+  WAITING_ARTIST
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketSource {
+  WEB_FORM
+  EMAIL
+  PHONE
+  CHAT
+  API
+}
+
+
+
+enum PayoutMethod {
+  STRIPE_CONNECT
+  MANUAL_CSV
+}
+
+enum PayoutBatchStatus {
+  PENDING
+  PROCESSING
+  PAID
+  PARTIAL
+  FAILED
+}
+
+
+
+model CuratorProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug       String   @unique
+  displayName String
+  avatarUrl   String?
+  tagline     String?
+  bio         String?
+  languages   String[] @default([])     // ex: ["RO","EN"]
+  specialties String[] @default([])     // ex: ["painting","photography"]
+  socials     Json?
+  isPublic    Boolean  @default(true)
+  featured    Boolean  @default(false)
+  sortIndex   Int      @default(0)
+  onlineAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // payouts
+  payoutMethod PayoutMethod @default(STRIPE_CONNECT)
+  stripeAccountId String?   @unique
+  payoutsEnabled   Boolean  @default(false)  // sync din Stripe
+  payoutCurrency   String   @default("EUR")
+
+  stats        CuratorStats?
+  commissions  CuratorCommission[]  @relation("CuratorCommissions")
+  payouts      CuratorPayout[]      @relation("CuratorPayouts")
+  tickets      Ticket[]             @relation("CuratorTickets")
+  lockedTickets Ticket[]            @relation("CuratorLockedTickets")
+  collections  CuratedCollection[]
+
+  @@map("curator_profiles")
+}
+
+model CuratorStats {
+  id                    String   @id @default(cuid())
+  curatorId             String   @unique
+  profile               CuratorProfile @relation(fields:[curatorId], references:[id], onDelete: Cascade)
+  ticketsClaimed        Int      @default(0)
+  ticketsResolved       Int      @default(0)
+  avgFirstResponseMin   Float?   // calcul periodic
+  commissionMinorEarned Int      @default(0)
+  lastUpdated           DateTime @default(now())
+
+  @@map("curator_stats")
+}
+
+model Ticket {
+  id            String   @id @default(cuid())
+  type          TicketType
+  status        TicketStatus      @default(OPEN)
+  priority      TicketPriority    @default(NORMAL)
+  subject       String
+  customerId    String?
+  artistId      String?
+  artworkId     String?
+  curatorId     String?           // curatorul care A CLAIM-AT (de lucru)
+  curatorLockedToId String?       // dacă userul a ales explicit un curator
+  claimLockedUntil DateTime?      // lock window, după care intră în public queue
+  source        TicketSource      @default(WEB_FORM)
+  payload       Json?
+  firstResponseAt DateTime?
+  closedAt      DateTime?
+  lastActivity  DateTime          @default(now())
+  snoozedUntil  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relations
+  customer      User?             @relation("CustomerTickets", fields: [customerId], references: [id], onDelete: SetNull)
+  artist        Artist?           @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  artwork       Artwork?          @relation(fields: [artworkId], references: [id], onDelete: SetNull)
+  curator       CuratorProfile?   @relation("CuratorTickets", fields: [curatorId], references: [id], onDelete: SetNull)
+  curatorLockedTo CuratorProfile? @relation("CuratorLockedTickets", fields: [curatorLockedToId], references: [id], onDelete: SetNull)
+  messages      Message[]
+  commissions   CuratorCommission[]
+
+  @@map("tickets")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  ticketId  String
+  senderId  String
+  senderType String  // "CUSTOMER", "ARTIST", "CURATOR", "SYSTEM"
+  content   String
+  attachments Json?  // array of file URLs
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model CuratorCommission {
+  id             String   @id @default(cuid())
+  ticketId       String
+  ticket         Ticket   @relation(fields:[ticketId], references:[id], onDelete: Cascade)
+  curatorId      String
+  curator        CuratorProfile @relation(fields:[curatorId], references:[id], onDelete: Cascade, name: "CuratorCommissions")
+  orderId        String
+  basisMinor     Int      // baza de calcul (platform fee sau gross)
+  pct            Float
+  commissionMinor Int
+  status         CommissionStatus @default(PENDING) // PENDING | EARNED | PAID | REVERSED
+  createdAt      DateTime @default(now())
+  earnedAt       DateTime?
+  paidAt         DateTime?
+  payoutId       String?         // legătura către payout când se plătește
+  payout         CuratorPayout?  @relation(fields:[payoutId], references:[id], onDelete: SetNull)
+
+  @@map("curator_commissions")
+}
+
+model CuratorPayoutBatch {
+  id        String   @id @default(cuid())
+  label     String   @unique          // ex: curator-payouts-2025-09
+  currency  String
+  method    PayoutMethod
+  periodFrom DateTime
+  periodTo   DateTime
+  totalMinor Int      @default(0)
+  count      Int      @default(0)
+  status     PayoutBatchStatus @default(PENDING)  // PENDING|PROCESSING|PAID|PARTIAL|FAILED
+  createdAt  DateTime @default(now())
+  processedAt DateTime?
+  items     CuratorPayout[]
+
+  @@map("curator_payout_batches")
+}
+
+model CuratorPayout {
+  id        String   @id @default(cuid())
+  batchId   String
+  batch     CuratorPayoutBatch @relation(fields:[batchId], references:[id], onDelete: Cascade)
+  curatorId String
+  curator   CuratorProfile @relation(fields:[curatorId], references:[id], onDelete: Cascade, name: "CuratorPayouts")
+  amountMinor Int
+  currency  String
+  status    PayoutStatus @default(PENDING)   // PENDING|PROCESSING|PAID|FAILED
+  reason    String?
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+  transferId String?   // Stripe transfer id sau ref manual
+
+  commissions CuratorCommission[] // conectate la acest payout
+
+  @@map("curator_payouts")
+}
+
+// Reguli simple de preț (fără cupoane): condiție + procent / sumă
+model PriceRule {
+	id          String   @id @default(cuid())
+	name        String
+	scope       String   // "GLOBAL" | "MEDIUM" | "ARTWORK" | "EDITION" | "DIGITAL"
+	medium      ProductMedium?
+	artworkId   String?
+	editionId   String?
+	pct         Float?   // de ex: -0.10 = -10%
+	addMinor    Int?     // ajustare fixă (poate fi negativă)
+	priority    Int      @default(100) // 0 = highest
+	stackable   Boolean  @default(false)
+	startsAt    DateTime?
+	endsAt      DateTime?
+	active      Boolean  @default(true)
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+
+	@@map("price_rules")
+}
+
+// Costuri de bază pentru printuri (material/dimensiune)
+model PrintBaseCost {
+	id              String   @id @default(cuid())
+	kind            String   // "CANVAS" | "METAL" | "PHOTO"
+	sizeLabel       String   // "30x40", "50x70", etc.
+	baseMinor       Int      // cost variabil producție (fără TVA)
+	packagingMinor  Int      @default(0)  // cost materiale/ambalare
+	leadDays        Int      @default(5)
+	active          Boolean  @default(true)
+	createdAt       DateTime @default(now())
+	updatedAt       DateTime @updatedAt
+
+	@@unique([kind, sizeLabel])
+	@@map("print_base_costs")
+}
+
+// Profil de pricing per artist (markup & loss-guard)
+model ArtistPricingProfile {
+	id              String        @id @default(cuid())
+	artistId        String        @unique
+	printMarkupPct  Float?        // fallback generic pentru toate tipurile de PRINT
+	canvasMarkupPct Float?
+	metalMarkupPct  Float?
+	photoMarkupPct  Float?
+	minMarginPct    Float?        // dacă lipsește => PRINT_MIN_MARGIN_PCT
+	rounding        PriceRounding @default(END_00)
+	active          Boolean       @default(true)
+	createdAt       DateTime      @default(now())
+	updatedAt       DateTime      @updatedAt
+
+	@@map("artist_pricing_profiles")
+}
+
+// Campanii sezoniere programabile
+model Campaign {
+	id          String   @id @default(cuid())
+	name        String
+	scope       CampaignScope
+	medium      ProductMedium?
+	artistId    String?
+	artworkId   String?
+	editionKind EditionKind?
+	pct         Float?            // ex: -0.10 = -10%
+	addMinor    Int?              // ajustare fixă (negativ pentru discount)
+	priority    Int      @default(50)
+	stackable   Boolean  @default(false)
+	maxDiscountMinor Int?         // „cap" (opțional)
+	startsAt    DateTime
+	endsAt      DateTime
+	active      Boolean  @default(true)
+	ogBadge     Boolean  @default(true)
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+
+	@@map("campaigns")
+}
+
+
+
+
+
+enum AnalyticsEventType {
+	VIEW_ARTWORK
+	SAVE_ARTWORK
+	SHARE_ARTWORK
+	ADD_TO_CART
+	CHECKOUT_START
+	PURCHASED
+}
+
+// Evenimente de analytics pentru insights
+model AnalyticsEvent {
+	id         String   @id @default(cuid())
+	type       AnalyticsEventType
+	ts         DateTime @default(now())
+	userId     String?
+	sessionId  String?             // client-generated UUID
+	artistId   String?
+	artworkId  String?
+	collectionId String?
+	referrer   String?
+	utmSource  String?
+	utmMedium  String?
+	utmCampaign String?
+	country    String?             // ISO2
+	device     String?             // mobile/desktop
+	priceMinor Int?                // snapshot optional
+	createdAt  DateTime @default(now())
+
+	@@index([artistId, ts])
+	@@index([artworkId, ts])
+	@@index([type, ts])
+	@@map("analytics_events")
 }

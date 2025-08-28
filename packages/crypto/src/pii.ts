@@ -26,11 +26,11 @@ export function encryptPII(plain: string): PiiEncryptionResult {
   }
 }
 
-export function decryptPII(iv: Buffer, ciphertext: Buffer, tag: Buffer): string {
-  const decipher = createDecipheriv("aes-256-gcm", key, iv)
-  decipher.setAuthTag(tag)
+export function decryptPII(iv: Buffer | Uint8Array, ciphertext: Buffer | Uint8Array, tag: Buffer | Uint8Array): string {
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv))
+  decipher.setAuthTag(Buffer.from(tag))
   
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8")
+  return Buffer.concat([decipher.update(Buffer.from(ciphertext)), decipher.final()]).toString("utf8")
 }
 
 export function hashIdentifier(value: string): string {

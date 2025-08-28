@@ -20,10 +20,10 @@ export default async function routes(app: FastifyInstance) {
       // Verify artwork exists and is published
       const artwork = await app.prisma.artwork.findUnique({
         where: { id: artworkId },
-        select: { id: true, published: true }
+        select: { id: true, status: true }
       });
       
-      if (!artwork || !artwork.published) {
+      if (!artwork || artwork.status !== "PUBLISHED") {
         return res.code(404).send({ error: "Artwork not found or not published" });
       }
       
@@ -55,14 +55,12 @@ export default async function routes(app: FastifyInstance) {
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: {
-        artwork: {
-          select: {
-            id: true,
-            title: true,
-            slug: true
-          }
-        }
+      select: {
+        id: true,
+        kind: true,
+        weight: true,
+        createdAt: true,
+        artworkId: true
       }
     });
     

@@ -8,7 +8,7 @@ import {
 /**
  * Create a moderation item for an artwork
  */
-export async function createArtworkModerationItem(artworkId: string) {
+export async function createArtworkModerationItem(artworkId: string): Promise<any> {
   try {
     // Get artwork with images
     const artwork = await prisma.artwork.findUnique({

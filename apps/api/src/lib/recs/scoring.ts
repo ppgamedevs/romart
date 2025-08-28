@@ -1,12 +1,10 @@
-import { app } from "../../index";
-
 type Art = { 
   id: string; 
   artistId: string; 
-  priceMinor: number; 
+  priceAmount: number; 
   medium: string; 
-  styleTags: string[]; 
-  colors: string[] 
+  styleTags?: string[]; 
+  colors?: string[] 
 };
 
 const W = { 
@@ -37,7 +35,7 @@ export function scoreSimilar(src: Art, cand: Art, pop: number) {
   const sMedium = src.medium && cand.medium && src.medium === cand.medium ? 1 : 0;
   const sStyle = jaccard(src.styleTags || [], cand.styleTags || []);
   const sColor = jaccard(src.colors || [], cand.colors || []);
-  const sPrice = priceAffinity(src.priceMinor, cand.priceMinor);
+  const sPrice = priceAffinity(src.priceAmount, cand.priceAmount);
   
   return W.medium * sMedium + W.style * sStyle + W.colors * sColor + W.price * sPrice + W.pop * pop;
 }

@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { prisma } from "@romart/db";
+import { prisma } from "@artfromromania/db";
 
 export default async function seoRoutes(app: FastifyInstance) {
   // Cache headers for SEO endpoints
@@ -20,8 +20,8 @@ export default async function seoRoutes(app: FastifyInstance) {
         take: 25000 
       }),
       prisma.artwork.findMany({ 
-        select: { slug: true, updatedAt: true, published: true }, 
-        where: { published: true }, 
+        select: { slug: true, updatedAt: true, status: true }, 
+        where: { status: "PUBLISHED" }, 
         orderBy: { updatedAt: "desc" }, 
         take: 25000 
       }),
@@ -58,15 +58,13 @@ export default async function seoRoutes(app: FastifyInstance) {
         title: true, 
         description: true, 
         medium: true,
-        priceMinor: true, 
-        currency: true, 
-        available: true,
+        priceAmount: true, 
+        priceCurrency: true, 
         widthCm: true, 
         heightCm: true, 
         depthCm: true,
-        heroUrl: true, 
-        thumbUrl: true, 
-        published: true, 
+        heroImageUrl: true, 
+        status: true, 
         updatedAt: true,
         artist: { 
           select: { 
@@ -77,7 +75,7 @@ export default async function seoRoutes(app: FastifyInstance) {
         }
       }
     });
-    if (!aw || !aw.published) return res.code(404).send({ error: "not-found" });
+    if (!aw || aw.status !== "PUBLISHED") return res.code(404).send({ error: "not-found" });
     return res.send(aw);
   });
 }

@@ -20,7 +20,7 @@ type FormData = {
   youtube: string
 }
 
-export default function Step4SocialsPage() {
+export default function SocialsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {

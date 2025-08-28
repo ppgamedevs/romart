@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth"
+import { getAuthSession } from "@/auth/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -7,12 +7,16 @@ import Link from "next/link"
 import { BecomeArtistButton } from "./become-artist-button"
 import { OrderHistory } from "./order-history"
 
-export default async function DashboardPage() {
-	const user = await getCurrentUser()
+export const dynamic = 'force-dynamic'
 
-	if (!user) {
+export default async function DashboardPage() {
+	const session = await getAuthSession()
+
+	if (!session?.user) {
 		redirect("/sign-in")
 	}
+
+	const user = session.user
 
 	return (
 		<div className="container mx-auto py-8 px-4">

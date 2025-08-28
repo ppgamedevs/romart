@@ -1,39 +1,37 @@
-import { app } from "../index";
+import { prisma } from "@artfromromania/db";
 import { scoreSimilar, trendingFormula } from "../lib/recs/scoring";
 
 export async function buildSimilarAll() {
-  const all = await app.prisma.artwork.findMany({
-    where: { published: true },
+  const all = await prisma.artwork.findMany({
+    where: { status: "PUBLISHED" },
     select: {
       id: true,
       artistId: true,
-      priceMinor: true,
-      medium: true,
-      styleTags: true,
-      colors: true
+      priceAmount: true,
+      medium: true
     }
   });
 
   const TOL = Number(process.env.RECS_PRICE_BAND_TOLERANCE || 0.35);
 
   for (const src of all) {
-    const lo = Math.floor(src.priceMinor * (1 - TOL)), hi = Math.ceil(src.priceMinor * (1 + TOL));
-    const cands = all.filter(c => 
+    const lo = Math.floor(src.priceAmount * (1 - TOL)), hi = Math.ceil(src.priceAmount * (1 + TOL));
+    const cands = all.filter((c: any) => 
       c.id !== src.id && 
       c.medium === src.medium && 
-      c.priceMinor >= lo && 
-      c.priceMinor <= hi
+      c.priceAmount >= lo && 
+      c.priceAmount <= hi
     );
 
     const scored = cands
-      .map(c => ({ id: c.id, s: scoreSimilar(src as any, c as any, 0) }))
-      .sort((a, b) => b.s - a.s)
+      .map((c: any) => ({ id: c.id, s: scoreSimilar(src as any, c as any, 0) }))
+      .sort((a: any, b: any) => b.s - a.s)
       .slice(0, 50);
 
-    await app.prisma.$transaction([
-      app.prisma.similarArtwork.deleteMany({ where: { artworkId: src.id } }),
-      app.prisma.similarArtwork.createMany({
-        data: scored.map(s => ({
+    await prisma.$transaction([
+      prisma.similarArtwork.deleteMany({ where: { artworkId: src.id } }),
+      prisma.similarArtwork.createMany({
+        data: scored.map((s: any) => ({
           artworkId: src.id,
           similarId: s.id,
           score: s.s
@@ -47,7 +45,7 @@ export async function buildTrendingDay(date: Date) {
   const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
 
-  const ints = await app.prisma.interaction.groupBy({
+  const ints = await prisma.interaction.groupBy({
     by: ["artworkId", "kind"],
     _count: { _all: true },
     where: {
@@ -70,8 +68,8 @@ export async function buildTrendingDay(date: Date) {
     score: trendingFormula(v)
   }));
 
-  await app.prisma.$transaction([
-    app.prisma.trendingDaily.deleteMany({ where: { day: dayStart } }),
-    app.prisma.trendingDaily.createMany({ data: rows })
+  await prisma.$transaction([
+    prisma.trendingDaily.deleteMany({ where: { day: dayStart } }),
+    prisma.trendingDaily.createMany({ data: rows })
   ]);
 }

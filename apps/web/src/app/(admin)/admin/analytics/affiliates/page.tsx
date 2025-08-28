@@ -1,5 +1,6 @@
 import "server-only";
 export const revalidate = 300;
+export const dynamic = 'force-dynamic'
 const eur = (n:number)=> (n/100).toFixed(2)+" €";
 
 async function getData() {

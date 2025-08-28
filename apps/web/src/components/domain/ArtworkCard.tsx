@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -18,6 +20,21 @@ interface ArtworkCardProps {
 }
 
 export function ArtworkCard({ artwork, loading = false }: ArtworkCardProps) {
+	const [promo, setPromo] = useState<{ sale: boolean; pct: number } | null>(null);
+
+	useEffect(() => {
+		if (artwork?.id) {
+			fetch("/api/public/promo/bulk", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ artworkIds: [artwork.id] })
+			})
+				.then(r => r.json())
+				.then(j => setPromo(j.items?.[artwork.id] || null))
+				.catch(() => { });
+		}
+	}, [artwork?.id]);
+
 	if (loading) {
 		return (
 			<Card className="overflow-hidden">
@@ -41,7 +58,13 @@ export function ArtworkCard({ artwork, loading = false }: ArtworkCardProps) {
 	if (!artwork) return null
 
 	return (
-		<Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+		<Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 relative">
+			{/* SALE badge */}
+			{promo?.sale && (
+				<div className="absolute top-2 left-2 z-10 text-[11px] px-2 py-1 rounded-full bg-red-600 text-white">
+					SALE -{promo.pct}%
+				</div>
+			)}
 			<CardHeader className="pb-4">
 				<AspectRatio ratio={4 / 3} className="overflow-hidden rounded-lg">
 					{artwork.imageUrl ? (

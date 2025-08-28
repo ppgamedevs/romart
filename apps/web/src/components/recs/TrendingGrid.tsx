@@ -16,11 +16,20 @@ type RecItem = {
 };
 
 async function fetchTrending(): Promise<RecItem[]> {
-  const api = process.env.API_URL || "http://localhost:3001";
-  const r = await fetch(`${api}/recommendations/trending`, { cache: "no-store" });
-  if (!r.ok) return [];
-  const data = await r.json();
-  return (data?.items as RecItem[]) || [];
+  try {
+    const api = process.env.API_URL || "http://localhost:3001";
+    const r = await fetch(`${api}/recommendations/trending`, { 
+      cache: "no-store",
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data?.items as RecItem[]) || [];
+  } catch (error) {
+    console.warn("Failed to fetch trending recommendations:", error);
+    return [];
+  }
 }
 
 function money(minor: number, currency = "EUR") {

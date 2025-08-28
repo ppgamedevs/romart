@@ -1,13 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-// Use direct URL for API to avoid pooler issues
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL?.replace('pooler.', 'db.')
-    }
-  }
-});
+import { prisma } from "@artfromromania/db";
 import { renderTemplate } from "@artfromromania/email";
 import { sendEmailResend } from "./providers/resend";
 import type { EnqueueEmailParams, NotifTopic } from "./types";

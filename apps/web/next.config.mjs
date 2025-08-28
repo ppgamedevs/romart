@@ -1,15 +1,9 @@
-import withSentryConfig from "@sentry/nextjs/config";
+// import withSentryConfig from "@sentry/nextjs/config";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Disable optimizePackageImports temporarily to fix webpack issues
-    // optimizePackageImports: [
-    //   "@/components/ui",
-    //   "lucide-react",
-    //   "date-fns",
-    //   "@artfromromania/shared"
-    // ],
+    optimizePackageImports: ["react", "react-dom"],
   },
   // Suppress hydration warnings in development (often caused by browser extensions)
   reactStrictMode: true,
@@ -28,13 +22,16 @@ const nextConfig = {
     return config
   },
   images: {
-    remotePatterns: (process.env.IMAGE_ALLOWED_ORIGINS || "")
-      .split(",")
-      .filter(Boolean)
-      .map(host => ({
-        protocol: "https",
-        hostname: host.trim()
-      })),
+    remotePatterns: [
+      ...(process.env.IMAGE_ALLOWED_ORIGINS || "")
+        .split(",")
+        .filter(Boolean)
+        .map(host => ({
+          protocol: "https",
+          hostname: host.trim()
+        })),
+      { protocol: "https", hostname: new URL(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST || "https://example.r2.dev").hostname },
+    ],
     formats: ["image/avif", "image/webp"],
   },
   compiler: {
@@ -75,4 +72,5 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, { silent: true });
+// export default withSentryConfig(nextConfig, { silent: true });
+export default nextConfig;

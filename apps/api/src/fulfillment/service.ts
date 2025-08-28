@@ -2,7 +2,7 @@ import { prisma } from "@artfromromania/db";
 import { generateJobTicket, generatePackingSlip } from "./pdf";
 import { uploadToPrivateStorage } from "@artfromromania/storage";
 
-export async function processFulfillmentForOrder(orderId: string) {
+export async function processFulfillmentForOrder(orderId: string): Promise<any> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -144,7 +144,7 @@ export async function getFulfillmentQueue(filters: {
   assignedToUserId?: string;
   limit?: number;
   offset?: number;
-} = {}) {
+} = {}): Promise<any[]> {
   return prisma.fulfillmentOrder.findMany({
     where: {
       ...(filters.status && filters.status.length > 0
@@ -204,7 +204,7 @@ export async function updateFulfillmentStatus(
     qcPassedAt?: Date;
     trackingNumbers?: any;
   }
-) {
+): Promise<any> {
   return prisma.fulfillmentOrder.update({
     where: { id: fulfillmentId },
     data: {
@@ -214,7 +214,7 @@ export async function updateFulfillmentStatus(
   });
 }
 
-export async function getFulfillmentById(fulfillmentId: string) {
+export async function getFulfillmentById(fulfillmentId: string): Promise<any> {
   return prisma.fulfillmentOrder.findUnique({
     where: { id: fulfillmentId },
     include: {

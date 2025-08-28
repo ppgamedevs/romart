@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import TrendingGrid, { TrendingGridSkeleton } from "@/components/recs/TrendingGrid";
 
+export const dynamic = 'force-dynamic'
+
 export default function HomePage() {
 	return (
 		<main className="min-h-screen p-8">

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getArtworkBySlug, getRelatedArtworks } from "@artfromromania/db";
 import { visualArtworkJsonLd } from "@artfromromania/shared";
 import { ArtworkGallery } from "@/components/pdp/ArtworkGallery";
-import { Price } from "@/components/pdp/Price";
+import { PriceBlock } from "@/components/pdp/Price";
 import { Breadcrumbs, BreadcrumbsJsonLd } from "@/components/pdp/Breadcrumbs";
 import { PurchaseButtons } from "./PurchaseButtons";
 import { ArtworkGrid } from "@/components/catalog/ArtworkGrid";
@@ -19,6 +19,7 @@ import SimilarGrid, { SimilarGridSkeleton } from "@/components/recs/SimilarGrid"
 import MoreFromArtist, { MoreFromArtistSkeleton } from "@/components/recs/MoreFromArtist";
 import SeoJsonLd from "@/components/SeoJsonLd";
 import { canonical, ldVisualArtwork } from "@/lib/seo";
+import { ArtworkTracker } from "@/components/tracking/ArtworkTracker";
 
 export const revalidate = 300; // 5 minutes
 
@@ -58,13 +59,11 @@ export async function generateMetadata({ params }: ArtworkPageProps): Promise<Me
       url,
       title,
       description: desc,
-      images: ogImg ? [{ url: ogImg, width: 1200, height: 630, alt: title }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title, 
       description: desc,
-      images: ogImg ? [ogImg] : undefined,
     },
   };
 }
@@ -153,6 +152,9 @@ export default async function ArtworkPage({ params }: ArtworkPageProps) {
 
   return (
     <>
+      {/* Tracking */}
+      <ArtworkTracker artworkId={artwork.id} artistId={artwork.artistId} />
+      
       {/* JSON-LD Structured Data */}
       <BreadcrumbsJsonLd items={breadcrumbItems} />
       <SeoJsonLd data={ld} />
@@ -188,9 +190,9 @@ export default async function ArtworkPage({ params }: ArtworkPageProps) {
             </div>
 
             {/* Price */}
-            {artwork.priceAmount && (
+            {artwork.priceMinor && (
               <div className="text-2xl font-bold">
-                <Price amount={artwork.priceAmount} />
+                <PriceBlock artwork={artwork} />
               </div>
             )}
 

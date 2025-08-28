@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import { ClientProviders } from "@/components/providers/ClientProviders";
-
-const inter = Inter({ 
-	subsets: ["latin"],
-	display: "swap",
-	variable: "--font-sans"
-});
+// import { fontSans } from "@/app/fonts";
+// import { ClientProviders } from "@/components/providers/ClientProviders";
+// import VitalsReporter from "@/components/metrics/VitalsReporter";
 
 export const metadata: Metadata = {
 	title: {
@@ -22,15 +17,23 @@ export default function RootLayout({
 }: {
 	children: React.ReactNode;
 }) {
+	// const r2 = process.env.NEXT_PUBLIC_R2_PUBLIC_HOST || "";
+	// const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 	return (
-		<html lang="en" className={inter.variable}>
+		<html lang="en">
 			<head>
-				<link rel="icon" href="/favicon.ico" />
+				{/* <link rel="icon" href="/favicon.ico" /> */}
+				{/* {r2 && <link rel="preconnect" href={r2} crossOrigin="" />} */}
+				{/* <link rel="preconnect" href={api} crossOrigin="" /> */}
+				{/* <link rel="dns-prefetch" href="https://js.stripe.com" /> */}
+				<meta name="theme-color" content="#ffffff" />
 			</head>
-			<body className="min-h-screen bg-background font-sans antialiased">
-				<ClientProviders>
+			<body className="min-h-screen bg-background font-sans antialiased" suppressHydrationWarning={true}>
+				{/* <ClientProviders> */}
 					{children}
-				</ClientProviders>
+				{/* </ClientProviders> */}
+				{/* <VitalsReporter /> */}
 			</body>
 		</html>
 	);

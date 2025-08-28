@@ -66,6 +66,22 @@ import publicArtworksRoutes from "./routes/public-artworks";
 import cartRoutes from "./routes/cart";
 import cartMiniRoutes from "./routes/cart-mini";
 import seoRoutes from "./routes/seo";
+import metricsRoutes from "./routes/metrics";
+import curatorsPublic from "./routes/curators.public";
+import curatorsOps from "./routes/curators.ops";
+import curatorPayoutsStripe from "./routes/curator.payouts.stripe";
+import curatorPayoutsAdmin from "./routes/curator.payouts.admin";
+import curatorProfile from "./routes/curator.profile";
+import stripeRefunds from "./routes/stripe.refunds";
+import priceQuote from "./routes/price.quote";
+import adminPriceRules from "./routes/admin.price-rules";
+import adminCosting from "./routes/admin.costing";
+import adminCampaigns from "./routes/admin.campaigns";
+import promoBulk from "./routes/promo.bulk";
+import collectionsPublic from "./routes/collections.public";
+import collectionsAdmin from "./routes/collections.admin";
+import trackRoutes from "./routes/track";
+import studioInsights from "./routes/studio.insights";
 
 // Create Fastify instance with Pino logger
 const fastify = Fastify({ 
@@ -123,6 +139,13 @@ const start = async () => {
 		await fastify.register(cookie);
 		await fastify.register(authPlugin);
 
+		// Performance optimizations
+		await fastify.register(import("@fastify/etag"));
+		await fastify.register(import("@fastify/compress"), { 
+			global: true, 
+			encodings: ["br", "gzip", "deflate"] 
+		});
+
 		// Rate limiting
 		await fastify.register(rateLimit, { 
 			max: 200, 
@@ -132,6 +155,32 @@ const start = async () => {
 
 		// Decorate with Prisma
 		fastify.decorate("prisma", prisma);
+
+		// Cache pentru GET populare (discover/recommendations/search)
+		fastify.addHook("onSend", (req, reply, _payload, done) => {
+			if (req.method === "GET" && (
+					req.url?.startsWith("/discover") ||
+					req.url?.startsWith("/recommendations") ||
+					req.url?.startsWith("/public/") ||
+					req.url?.startsWith("/seo/")
+			)) {
+				reply.header("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+			}
+			done();
+		});
+
+		// Server-Timing (debug timpi DB)
+		fastify.addHook("onRequest", async (req, reply) => { 
+			(req as any)._t0 = process.hrtime.bigint(); 
+		});
+		fastify.addHook("onSend", (req, reply, payload, done) => {
+			const t0 = (req as any)._t0 as bigint | undefined;
+			if (t0) {
+				const ms = Number((process.hrtime.bigint() - t0) / 1000000n);
+				reply.header("Server-Timing", `app;dur=${ms}`);
+			}
+			done();
+		});
 
 		// Register routes
 		await fastify.register(uploadRoutes, { prefix: "/uploads" });
@@ -152,7 +201,6 @@ const start = async () => {
 		await fastify.register(legalRoutes, { prefix: "/legal" });
 		await fastify.register(affiliatesRoutes, { prefix: "/aff" });
 		await fastify.register(analyticsRoutes);
-		await fastify.register(shareLinksRoutes, { prefix: "/studio" });
 		await fastify.register(artistShareRoutes);
 		await fastify.register(recommendationsRoutes);
 		await fastify.register(interactionsRoutes);
@@ -161,6 +209,7 @@ const start = async () => {
 		await fastify.register(cartRoutes);
 		await fastify.register(cartMiniRoutes);
 		await fastify.register(seoRoutes);
+		await fastify.register(metricsRoutes);
 		await fastify.register(inquiryRoutes);
 		await fastify.register(favoriteRoutes);
 		await fastify.register(statsRoutes);
@@ -170,6 +219,23 @@ const start = async () => {
 		await fastify.register(testEmailRoutes);
 		await fastify.register(testShippingEmailRoutes);
 		await fastify.register(healthRoutes);
+		await fastify.register(priceQuote);
+		await fastify.register(adminPriceRules);
+		await fastify.register(adminCosting);
+		await fastify.register(adminCampaigns);
+await fastify.register(promoBulk);
+await fastify.register(collectionsPublic);
+await fastify.register(collectionsAdmin);
+await fastify.register(trackRoutes);
+await fastify.register(studioInsights);
+		
+		// Curator routes
+		await fastify.register(curatorsPublic);
+		await fastify.register(curatorsOps);
+		await fastify.register(curatorPayoutsStripe);
+		await fastify.register(curatorPayoutsAdmin);
+		await fastify.register(curatorProfile);
+		await fastify.register(stripeRefunds);
 
 		// Rate limiters
 		const apiRateLimiter = createRateLimiter("api", 60, 60); // 60 requests per minute

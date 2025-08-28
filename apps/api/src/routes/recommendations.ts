@@ -17,15 +17,13 @@ export default async function routes(app: FastifyInstance) {
       select: {
         id: true,
         artistId: true,
-        priceMinor: true,
+        priceAmount: true,
         medium: true,
-        styleTags: true,
-        colors: true,
-        published: true
+        status: true
       }
     });
     
-    if (!src || !src.published) return res.send({ items: [] });
+    if (!src || src.status !== "PUBLISHED") return res.send({ items: [] });
 
     // dacă avem precompute
     const pre = await app.prisma.similarArtwork.findMany({
@@ -40,42 +38,40 @@ export default async function routes(app: FastifyInstance) {
       const arts = await app.prisma.artwork.findMany({
         where: {
           id: { in: ids },
-          published: true
+          status: "PUBLISHED"
         },
         select: {
           id: true,
           artistId: true,
           slug: true,
           title: true,
-          thumbUrl: true,
-          priceMinor: true,
+          heroImageUrl: true,
+          priceAmount: true,
           medium: true
         }
       });
 
       // păstrează ordinea după score
-      const map = new Map(arts.map(a => [a.id, a]));
-      items = pre.map(p => map.get(p.similarId)).filter(Boolean);
+      const map = new Map(arts.map((a: any) => [a.id, a]));
+      items = pre.map((p: any) => map.get(p.similarId)).filter(Boolean);
     } else {
       // fallback: candidați apropiați (același medium + bandă de preț)
-      const lo = Math.floor(src.priceMinor * (1 - TOL)), hi = Math.ceil(src.priceMinor * (1 + TOL));
+      const lo = Math.floor(src.priceAmount * (1 - TOL)), hi = Math.ceil(src.priceAmount * (1 + TOL));
       const cands = await app.prisma.artwork.findMany({
         where: {
           id: { not: id },
-          published: true,
+          status: "PUBLISHED",
           medium: src.medium,
-          priceMinor: { gte: lo, lte: hi }
+          priceAmount: { gte: lo, lte: hi }
         },
         select: {
           id: true,
           artistId: true,
-          priceMinor: true,
+          priceAmount: true,
           medium: true,
-          styleTags: true,
-          colors: true,
           slug: true,
           title: true,
-          thumbUrl: true
+          heroImageUrl: true
         }
       });
 
@@ -101,15 +97,15 @@ export default async function routes(app: FastifyInstance) {
       }
 
       items = cands
-        .map(c => ({ c, s: scoreSimilar(src as any, c as any, pop[c.id] || 0) }))
+        .map((c: any) => ({ c, s: scoreSimilar(src as any, c as any, pop[c.id] || 0) }))
         .sort((a, b) => b.s - a.s)
         .map(x => ({
           id: x.c.id,
           artistId: x.c.artistId,
           slug: x.c.slug,
           title: x.c.title,
-          thumbUrl: x.c.thumbUrl,
-          priceMinor: x.c.priceMinor,
+          heroImageUrl: x.c.heroImageUrl,
+          priceAmount: x.c.priceAmount,
           medium: x.c.medium
         }));
     }
@@ -133,7 +129,7 @@ export default async function routes(app: FastifyInstance) {
   app.get("/recommendations/artist/:id/more", async (req, res) => {
     const artistId = (req.params as any).id as string;
     const items = await app.prisma.artwork.findMany({
-      where: { artistId, published: true },
+      where: { artistId, status: "PUBLISHED" },
       orderBy: [{ createdAt: "desc" }],
       take: MAX
     });
@@ -169,7 +165,7 @@ export default async function routes(app: FastifyInstance) {
     const arts = await app.prisma.artwork.findMany({
       where: {
         id: { in: scores.map(s => s.id) },
-        published: true
+        status: "PUBLISHED"
       }
     });
 
@@ -199,27 +195,25 @@ export default async function routes(app: FastifyInstance) {
       select: { artworkId: true }
     });
 
-    const seeds = [...new Set(recent.map(r => r.artworkId))].slice(0, 10);
+    const seeds = [...new Set(recent.map((r: any) => r.artworkId).filter(Boolean))].slice(0, 10);
 
     // candidați = trending + lucrări similare seed + filtrare medium/price dacă există prefs
     const trend = await app.prisma.artwork.findMany({
-      where: { published: true },
+      where: { status: "PUBLISHED" },
       orderBy: { createdAt: "desc" },
       take: MAX * 3,
       select: {
         id: true,
         artistId: true,
-        priceMinor: true,
+        priceAmount: true,
         medium: true,
-        styleTags: true,
-        colors: true,
         slug: true,
         title: true,
-        thumbUrl: true
+        heroImageUrl: true
       }
     });
 
-    const cands = new Map(trend.map(a => [a.id, a]));
+    const cands = new Map(trend.map(a => [a.id!, a]));
 
     if (seeds.length) {
       const sim = await app.prisma.similarArtwork.findMany({
@@ -228,48 +222,49 @@ export default async function routes(app: FastifyInstance) {
         take: MAX * 4
       });
 
-      const simIds = [...new Set(sim.map(s => s.similarId))].slice(0, MAX * 4);
+      const simIds = [...new Set(sim.map((s: any) => s.similarId).filter(Boolean))].slice(0, MAX * 4);
       if (simIds.length) {
         const simArts = await app.prisma.artwork.findMany({
           where: {
             id: { in: simIds },
-            published: true
+            status: "PUBLISHED"
           },
           select: {
             id: true,
             artistId: true,
-            priceMinor: true,
+            priceAmount: true,
             medium: true,
-            styleTags: true,
-            colors: true,
             slug: true,
             title: true,
-            thumbUrl: true
+            heroImageUrl: true
           }
         });
-        simArts.forEach(a => cands.set(a.id, a));
+        simArts.forEach(a => cands.set(a.id!, a));
       }
     }
 
     let pool = Array.from(cands.values());
     if (prefs?.topMediums?.length) {
-      pool = pool.filter(p => prefs.topMediums.includes(p.medium));
+      pool = pool.filter(p => p.medium && prefs.topMediums.includes(p.medium));
     }
     if (prefs?.priceP50) {
       const lo = Math.floor(prefs.priceP50 * (1 - TOL)), hi = Math.ceil(prefs.priceP50 * (1 + TOL));
-      pool = pool.filter(p => p.priceMinor >= lo && p.priceMinor <= hi);
+      pool = pool.filter(p => p.priceAmount >= lo && p.priceAmount <= hi);
     }
 
-    // ordonare simplă: întâi similare cu ultimele văzute, apoi trending (prin createdAt desc ca fallback)
-    // (pentru simplitate, păstrăm ordinea existentă, doar diversificăm pe artist)
-    const seenArtists = new Set<string>();
-    const out: any[] = [];
-    for (const it of pool) {
-      if (process.env.RECS_DIVERSITY_ARTIST === "true" && seenArtists.has(String(it.artistId))) continue;
-      seenArtists.add(String(it.artistId));
-      out.push(it);
-      if (out.length >= MAX) break;
-    }
+    // Filter out items without artistId first
+    const filteredPool = pool.filter(p => p.artistId != null);
+
+         // ordonare simplă: întâi similare cu ultimele văzute, apoi trending (prin createdAt desc ca fallback)
+     // (pentru simplitate, păstrăm ordinea existentă, doar diversificăm pe artist)
+     const seenArtists = new Set<string>();
+     const out: any[] = [];
+     for (const it of filteredPool) {
+       if (process.env.RECS_DIVERSITY_ARTIST === "true" && seenArtists.has(String(it.artistId))) continue;
+       seenArtists.add(String(it.artistId));
+       out.push(it);
+       if (out.length >= MAX) break;
+     }
 
     return res.send({ items: out });
   });

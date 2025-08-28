@@ -44,15 +44,15 @@ export default async function routes(app: FastifyInstance) {
     const since = new Date(Date.now() - 30*24*60*60*1000);
     const orders = await app.prisma.order.count({ where: { createdAt: { gte: since } } });
     const revenue = await app.prisma.order.aggregate({
-      _sum: { subtotalMinor: true },
-      where: { createdAt: { gte: since }, status: { in: ["PAID","FULFILLED"] } }
+      _sum: { subtotalAmount: true },
+      where: { createdAt: { gte: since }, status: { in: ["PAID"] } }
     });
     const aff = await app.prisma.referralConversion.aggregate({
       _sum: { commissionMinor: true }
     });
     return res.send({
       since, orders30d: orders,
-      revenue30dMinor: revenue._sum.subtotalMinor || 0,
+      revenue30dMinor: revenue._sum.subtotalAmount || 0,
       affCommissionMinor: aff._sum.commissionMinor || 0
     });
   });

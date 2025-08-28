@@ -29,7 +29,7 @@ async function createTransferToArtist(
     status: "pending"
   };
 }
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@artfromromania/db";
 
 export async function payoutsRoutes(fastify: FastifyInstance) {
   const rateLimiter = createRateLimiter("payouts", 60, 10); // 10 requests per minute
