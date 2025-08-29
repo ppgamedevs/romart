@@ -92,6 +92,10 @@ import homeFeed from "./routes/home.feed";
 import publicArtist from "./routes/public.artist";
 import publicArtistWorks from "./routes/public.artist.works";
 import adminArtist from "./routes/admin.artist";
+import publicShipEstimate from "./routes/public.shipping.estimate";
+import publicArtworkImages from "./routes/public.artwork.images";
+import publicPriceQuote from "./routes/public.price.quote";
+import publicCart from "./routes/public.cart";
 
 // Create Fastify instance with Pino logger
 const fastify = Fastify({ 
@@ -248,6 +252,10 @@ await fastify.register(searchPublic);
 		await fastify.register(publicArtist);
 		await fastify.register(publicArtistWorks);
 		await fastify.register(adminArtist);
+		await fastify.register(publicShipEstimate);
+		await fastify.register(publicArtworkImages);
+		await fastify.register(publicPriceQuote);
+		await fastify.register(publicCart);
 		
 		// Curator routes
 		await fastify.register(curatorsPublic);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { dict, t as T } from "@/components/i18n/t";
 import HomeHero from "@/components/home/HomeHero";
 import { ArtworkRail, CollectionsRail } from "@/components/home/Rail";
-import JsonLd from "@/components/seo/JsonLd";
+
 
 export const revalidate = 900; // 15 min
 
@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 async function fetchHome() {
-  const api = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-  const r = await fetch(`${api}/public/home-feed`, { next: { revalidate: 900 } });
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const r = await fetch(`${baseUrl}/api/home-feed`, { next: { revalidate: 900 } });
   if (!r.ok) return { collections: [], trending: [], newest: [], underPrice: [] };
   return r.json();
 }
@@ -76,7 +76,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
         )}
       </section>
 
-      <JsonLd data={jsonld} />
+
     </div>
   );
 }

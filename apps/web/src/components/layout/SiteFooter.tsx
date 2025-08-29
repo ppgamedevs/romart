@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Facebook, Instagram, Twitter } from "lucide-react";
 
 export function SiteFooter() {
   const currentYear = new Date().getFullYear();
@@ -17,13 +16,7 @@ export function SiteFooter() {
             </p>
             <div className="flex space-x-4">
               <Link href="#" className="text-muted hover:text-accent transition-colors">
-                <Facebook className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted hover:text-accent transition-colors">
-                <Instagram className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted hover:text-accent transition-colors">
-                <Twitter className="h-5 w-5" />
+                Share
               </Link>
             </div>
           </div>

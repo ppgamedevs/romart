@@ -4,7 +4,6 @@ import "../globals.css";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { notFound } from "next/navigation";
-import { Toaster } from "@/components/ui/toaster";
 import { AppShell } from "@/components/layout/AppShell";
 
 export const dynamic = 'force-dynamic'
@@ -130,10 +129,9 @@ export default async function LocaleLayout({
 			<body className="min-h-screen bg-background font-sans antialiased">
 				<ErrorBoundary>
 					<ClientProviders>
-						<AppShell locale={locale}>
+						<AppShell>
 							{children}
 						</AppShell>
-						<Toaster />
 					</ClientProviders>
 				</ErrorBoundary>
 			</body>

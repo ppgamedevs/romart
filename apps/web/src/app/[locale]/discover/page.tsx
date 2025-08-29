@@ -29,12 +29,13 @@ async function fetchSearch(sp: any) {
   }
 }
 
-export default async function Discover({ searchParams, params }: { searchParams: any; params: Promise<{ locale: string }> }) {
+export default async function Discover({ searchParams, params }: { searchParams: Promise<any>; params: Promise<{ locale: string }> }) {
   const { locale } = await params;
+  const sp = await searchParams;
   const t = T(locale);
-  const view = searchParams.view === "list" ? "list" : "grid";
-  const sp = { ...searchParams, page: searchParams.page || 1, pageSize: searchParams.pageSize || 24 };
-  const data = await fetchSearch(sp);
+  const view = sp.view === "list" ? "list" : "grid";
+  const searchParamsObj = { ...sp, page: sp.page || 1, pageSize: sp.pageSize || 24 };
+  const data = await fetchSearch(searchParamsObj);
 
   const mediums = [
     { k: "PAINTING", label: locale === "ro" ? "Pictură" : "Painting" },
@@ -44,7 +45,7 @@ export default async function Discover({ searchParams, params }: { searchParams:
   ];
 
   function url(next: any) {
-    return `/${locale}/discover?` + new URLSearchParams({ ...searchParams, ...next }).toString();
+    return `/${locale}/discover?` + new URLSearchParams({ ...sp, ...next }).toString();
   }
 
   return (
@@ -55,13 +56,13 @@ export default async function Discover({ searchParams, params }: { searchParams:
       <form className="grid md:grid-cols-5 gap-2">
         <input 
           name="q" 
-          defaultValue={searchParams.q || ""} 
+          defaultValue={sp.q || ""} 
           className="border rounded-lg px-3 py-2 md:col-span-2" 
           placeholder="Search…" 
         />
                  <select 
            name="medium" 
-           defaultValue={searchParams.medium || ""} 
+           defaultValue={sp.medium || ""} 
            className="border rounded-lg px-2 py-2"
          >
            <option value="">{locale === "ro" ? "Toate tehnicile" : "All media"}</option>
@@ -71,7 +72,7 @@ export default async function Discover({ searchParams, params }: { searchParams:
          </select>
          <select 
            name="orientation" 
-           defaultValue={searchParams.orientation || ""} 
+           defaultValue={sp.orientation || ""} 
            className="border rounded-lg px-2 py-2"
          >
            <option value="">{locale === "ro" ? "Oricare" : "Any orientation"}</option>
@@ -81,7 +82,7 @@ export default async function Discover({ searchParams, params }: { searchParams:
         </select>
         <select 
           name="sort" 
-          defaultValue={searchParams.sort || "relevance"} 
+          defaultValue={sp.sort || "relevance"} 
           className="border rounded-lg px-2 py-2"
         >
           <option value="relevance">Best match</option>
@@ -96,7 +97,7 @@ export default async function Discover({ searchParams, params }: { searchParams:
       {/* Shop by medium chips */}
       <div className="flex flex-wrap gap-2">
         {mediums.map(m => {
-          const active = searchParams.medium === m.k;
+          const active = sp.medium === m.k;
           return (
             <a 
               key={m.k} 
