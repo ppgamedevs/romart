@@ -1,176 +1,131 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@artfromromania/db";
-import { InquiryButtons } from "@/components/inquiry/InquiryButtons";
 import JsonLd from "@/components/seo/JsonLd";
-import { altLanguages, canonicalUrl } from "@/lib/seo";
-import { ArtistHeader } from "@/components/domain/artist/ArtistHeader";
-import { ArtistTabs } from "@/components/domain/artist/ArtistTabs";
-import { ArtistWorks } from "@/components/domain/artist/ArtistWorks";
+import ArtistHeader from "@/components/domain/artist/ArtistHeader";
+import ExhibitionsTimeline from "@/components/domain/artist/ExhibitionsTimeline";
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
 }
 
+async function fetchArtist(slug: string) {
+  const api = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const r = await fetch(`${api}/public/artist/by-slug/${slug}`, { cache: "no-store" });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+async function fetchArtistWorks(artistId: string) {
+  const api = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const r = await fetch(`${api}/public/artist/${artistId}/works`, { cache: "no-store" });
+  if (!r.ok) return [];
+  return r.json();
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await params;
   
-  const artist = await getArtistBySlug({ locale, slug });
-  if (!artist) {
+  const data = await fetchArtist(slug);
+  if (!data) {
     return {
       title: "Artist Not Found",
     };
   }
 
-  const displayNameLocalized = artist.displayNameLocalized as Record<string, string> | null;
-  const bioLocalized = artist.bioLocalized as Record<string, string> | null;
-  
-  const displayName = displayNameLocalized?.[locale] || 
-                     displayNameLocalized?.en || 
-                     artist.displayName;
-  
-  const bio = bioLocalized?.[locale] || 
-              bioLocalized?.en || 
-              artist.bio;
-
-  const path = `/artist/${slug}`;
+  const artist = data.artist;
+  const base = process.env.SITE_URL || "http://localhost:3000";
   
   return {
-    title: `${displayName} — Artist`,
-    description: bio?.slice(0, 160) || `${displayName} - Romanian artist on Art from Romania`,
+    title: `${artist.displayName} — Artist`,
+    description: artist.bio?.slice(0, 160) || `${artist.displayName} - Romanian artist on Art from Romania`,
     alternates: { 
-      canonical: canonicalUrl(path), 
-      languages: altLanguages(path) 
+      canonical: `${base}/${locale}/artist/${artist.slug}`,
+      languages: {
+        en: `${base}/en/artist/${artist.slug}`,
+        ro: `${base}/ro/artist/${artist.slug}`
+      }
     },
     openGraph: {
-      title: displayName,
-      description: bio || `${displayName} - Romanian artist on Art from Romania`,
-      url: canonicalUrl(path),
+      title: artist.displayName,
+      description: artist.bio || `${artist.displayName} - Romanian artist on Art from Romania`,
+      url: `${base}/${locale}/artist/${artist.slug}`,
       type: "profile",
       images: artist.avatarUrl ? [artist.avatarUrl] : undefined,
     },
   };
 }
 
-async function getArtistBySlug({ locale, slug }: { locale: string; slug: string }) {
-  // First try to find by the locale-specific slug
-  const artist = await prisma.artist.findFirst({
-    where: {
-      OR: [
-        { slugEn: slug },
-        { slugRo: slug },
-        { slug: slug } // fallback to original slug
-      ],
-      kycStatus: "APPROVED",
-      banned: false,
-      shadowbanned: false,
-    },
-    include: {
-      user: {
-        select: {
-          name: true,
-          email: true,
-        }
-      },
-      artworks: {
-        where: {
-          status: "PUBLISHED",
-          visibility: "PUBLIC",
-          suppressed: false,
-          moderationStatus: "APPROVED",
-        },
-        orderBy: {
-          publishedAt: "desc"
-        },
-        take: 10
-      }
-    }
-  });
-
-  if (!artist) {
-    return null;
-  }
-
-  // If we found the artist but the slug doesn't match the current locale,
-  // we should redirect to the correct slug for this locale
-  const correctSlug = locale === "ro" ? artist.slugRo : artist.slugEn;
-  if (correctSlug && correctSlug !== slug) {
-    // This will trigger a redirect in the component
-    return { ...artist, redirectTo: `/${locale}/artist/${correctSlug}` };
-  }
-
-  return artist;
-}
-
 export default async function ArtistPage({ params }: PageProps) {
   const { locale, slug } = await params;
   
-  const artist = await getArtistBySlug({ locale, slug });
-  
-  if (!artist) {
+  const data = await fetchArtist(slug);
+  if (!data) {
     notFound();
   }
 
-  // Handle redirect if needed
-  if ('redirectTo' in artist) {
-    // In a real implementation, you'd use Next.js redirect
-    // For now, we'll just show the artist data
-  }
-
-  const displayNameLocalized = artist.displayNameLocalized as Record<string, string> | null;
-  const bioLocalized = artist.bioLocalized as Record<string, string> | null;
-  
-  const displayName = displayNameLocalized?.[locale] || 
-                     displayNameLocalized?.en || 
-                     artist.displayName;
-  
-  const bio = bioLocalized?.[locale] || 
-              bioLocalized?.en || 
-              artist.bio;
+  const works = await fetchArtistWorks(data.artist.id);
 
   const jsonld = {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": displayName,
-    "image": artist.avatarUrl || undefined,
-    "url": canonicalUrl(`/artist/${artist.slug}`),
-    "sameAs": artist.socials?.filter(Boolean)
+    "name": data.artist.displayName,
+    "image": data.artist.avatarUrl || undefined,
+    "url": `${process.env.SITE_URL || "http://localhost:3000"}/${locale}/artist/${data.artist.slug}`,
+    "award": data.artist.verifiedAt ? ["Verified Artist — Art from Romania"] : undefined,
+    "performerIn": (data.artist.exhibitions || []).slice(0, 8).map((e: any) => ({
+      "@type": "Event",
+      "name": `${e.type === "SOLO" ? "Solo" : "Group"} — ${e.title}`,
+      "startDate": e.startDate || undefined,
+      "location": [e.venue, e.city, e.country].filter(Boolean).join(", ") || undefined,
+      "url": e.url || undefined
+    }))
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <JsonLd data={jsonld} />
-        
-        <ArtistHeader
-          artist={{
-            id: artist.id,
-            displayName,
-            avatarUrl: artist.avatarUrl,
-            locationCity: artist.locationCity,
-            locationCountry: artist.locationCountry,
-            bio,
-            followers: 0, // TODO: Add followers count
-            sales: 0, // TODO: Add sales count
-          }}
-          locale={locale}
-        />
-
-        <ArtistTabs locale={locale} />
-
-        <ArtistWorks
-          artworks={artist.artworks.map((artwork: any) => ({
-            id: artwork.id,
-            slug: artwork.slug,
-            title: artwork.title,
-            artistName: displayName,
-            image: artwork.heroImageUrl,
-            minPriceMinor: artwork.minPriceMinor,
-            priceMinor: artwork.priceAmount,
-            salePct: artwork.salePct,
-          }))}
-          locale={locale}
-        />
+    <div className="max-w-6xl mx-auto p-6">
+      <JsonLd data={jsonld} />
+      
+      <ArtistHeader artist={{ ...data.artist, kpi: data.kpi }} locale={locale} />
+      
+      {/* Tabs simple: Works + About (bio) + Exhibitions */}
+      <div className="mt-8 grid md:grid-cols-4 gap-6">
+        <div className="md:col-span-3">
+          <h2 className="text-xl font-semibold">Works</h2>
+          <div className="mt-4">
+            <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))" }}>
+              {works.map((a: any) => (
+                <a
+                  key={a.id}
+                  href={`/${locale}/artwork/${a.slug}`}
+                  className="block rounded-2xl overflow-hidden border bg-card hover:shadow-soft relative"
+                >
+                  {a.soldOut && (
+                    <span className="absolute left-2 top-2 text-[11px] px-2 py-0.5 rounded-full bg-neutral-900/90 text-white">
+                      SOLD
+                    </span>
+                  )}
+                  <div className="relative h-60 bg-neutral-100">
+                    {/* thumb endpoint existent */}
+                    <img src={`/api/artwork/${a.id}/thumb`} alt={a.title} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <div className="text-sm font-medium line-clamp-1">{a.title}</div>
+                    <div className="text-xs opacity-70 line-clamp-1">{data.artist.displayName}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+        <aside className="md:col-span-1">
+          {data.artist.bio && (
+            <section className="rounded-2xl border p-4">
+              <h3 className="font-medium">About</h3>
+              <p className="mt-2 text-sm opacity-80 whitespace-pre-line">{data.artist.bio}</p>
+            </section>
+          )}
+          <ExhibitionsTimeline items={data.artist.exhibitions} />
+        </aside>
       </div>
     </div>
   );

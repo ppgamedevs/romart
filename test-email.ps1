@@ -5,7 +5,7 @@ Write-Host "Testing Email & Notification System" -ForegroundColor Green
 $env:EMAIL_PROVIDER = "RESEND"
 $env:EMAIL_FROM = "RomArt <no-reply@artfromromania.com>"
 $env:EMAIL_REPLY_TO = "curator@artfromromania.com"
-$env:RESEND_API_KEY = "re_9snVxsSG_7iPTXsu9hwTKbFbvBhmCmpiH"
+$env:RESEND_API_KEY = "your_resend_api_key_here"
 $env:NOTIF_SIGNED_URL_TTL = "900"
 
 Write-Host "Environment variables set" -ForegroundColor Green

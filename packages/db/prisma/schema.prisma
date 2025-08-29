@@ -266,6 +266,11 @@ enum EditionKind {
 	PHOTO 
 }
 
+enum ExhibitionType {
+	SOLO
+	GROUP
+}
+
 model User {
 	id           String   @id @default(cuid())
 	email        String?  @unique
@@ -337,6 +342,9 @@ model Artist {
 	banReason       String?
 	shadowbanned    Boolean @default(false)
 	trustScore      Int     @default(50)
+	// Verification fields
+	verifiedAt      DateTime?
+	verifiedById    String?
 	// i18n fields
 	displayNameLocalized Json?   // { en: "John Doe", ro: "Ion Pop" }
 	bioLocalized         Json?   // { en: "...", ro: "..." }
@@ -356,8 +364,32 @@ model Artist {
 	stats           ArtistStat?
 	artistShareLinks ArtistShareLink[]
 	tickets         Ticket[]
+	exhibitions     Exhibition[]
 
+	@@index([verifiedAt])
 	@@map("artists")
+}
+
+model Exhibition {
+	id        String         @id @default(cuid())
+	artistId  String
+	artist    Artist         @relation(fields: [artistId], references: [id], onDelete: Cascade)
+	type      ExhibitionType
+	title     String
+	venue     String?
+	city      String?
+	country   String?
+	startDate DateTime?
+	endDate   DateTime?
+	url       String?
+	highlight Boolean        @default(false)
+	sortIndex Int            @default(0)
+	createdAt DateTime       @default(now())
+	updatedAt DateTime       @updatedAt
+
+	@@index([artistId, sortIndex])
+	@@index([startDate])
+	@@map("exhibitions")
 }
 
 model Artwork {

@@ -89,6 +89,9 @@ import qaAdmin from "./routes/qa.admin";
 import cronQa from "./routes/cron.qa";
 import publicSlugs from "./routes/public.slugs";
 import homeFeed from "./routes/home.feed";
+import publicArtist from "./routes/public.artist";
+import publicArtistWorks from "./routes/public.artist.works";
+import adminArtist from "./routes/admin.artist";
 
 // Create Fastify instance with Pino logger
 const fastify = Fastify({ 
@@ -242,6 +245,9 @@ await fastify.register(searchPublic);
 		await fastify.register(cronQa);
 		await fastify.register(publicSlugs);
 		await fastify.register(homeFeed);
+		await fastify.register(publicArtist);
+		await fastify.register(publicArtistWorks);
+		await fastify.register(adminArtist);
 		
 		// Curator routes
 		await fastify.register(curatorsPublic);

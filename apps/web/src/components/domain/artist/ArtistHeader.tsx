@@ -1,103 +1,39 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, Users, ShoppingBag } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { VerifiedBadge } from "./ArtistBadge";
 
-interface ArtistHeaderProps {
-  artist: {
-    id: string;
-    displayName: string;
-    avatarUrl?: string | null;
-    bio?: string | null;
-    locationCity?: string | null;
-    locationCountry?: string | null;
-    followersCount?: number;
-    salesCount?: number;
-  };
-  locale: string;
-}
-
-export function ArtistHeader({ artist, locale }: ArtistHeaderProps) {
+export default function ArtistHeader({ artist, locale }: { artist: any; locale: string }) {
   return (
-    <div className="relative">
-      {/* Cover Image (subtle background) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent" />
-      
-      <div className="relative container py-12">
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            {artist.avatarUrl ? (
-              <Image
-                src={artist.avatarUrl}
-                alt={artist.displayName}
-                width={120}
-                height={120}
-                className="rounded-full object-cover border-4 border-white shadow-soft"
-              />
-            ) : (
-              <div className="w-30 h-30 rounded-full bg-muted/20 border-4 border-white shadow-soft flex items-center justify-center">
-                <span className="text-4xl font-bold text-muted">
-                  {artist.displayName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
+    <div className="relative overflow-hidden rounded-2xl border bg-card">
+      {/* Subtle cover */}
+      {artist.coverUrl && (
+        <div className="absolute inset-0 opacity-15">
+          <Image src={artist.coverUrl} alt="" fill className="object-cover" />
+        </div>
+      )}
+      <div className="relative p-6 md:p-8 flex gap-4">
+        <div className="relative w-28 h-28 rounded-full overflow-hidden border bg-neutral-100 shrink-0">
+          {artist.avatarUrl && <Image src={artist.avatarUrl} alt={artist.displayName} fill className="object-cover" />}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-semibold">{artist.displayName}</h1>
+            {artist.verifiedAt && <VerifiedBadge />}
           </div>
-
-          {/* Content */}
-          <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-3xl font-bold text-fg mb-2">
-                {artist.displayName}
-              </h1>
-              
-              {/* Location */}
-              {artist.locationCity && (
-                <div className="flex items-center text-muted mb-3">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span>
-                    {artist.locationCity}
-                    {artist.locationCountry && `, ${artist.locationCountry}`}
-                  </span>
-                </div>
-              )}
-
-              {/* Stats */}
-              <div className="flex items-center space-x-6 text-sm text-muted mb-4">
-                {artist.followersCount && (
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    <span>{artist.followersCount.toLocaleString()} followers</span>
-                  </div>
-                )}
-                {artist.salesCount && (
-                  <div className="flex items-center">
-                    <ShoppingBag className="h-4 w-4 mr-1" />
-                    <span>{artist.salesCount} sales</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bio */}
-            {artist.bio && (
-              <p className="text-muted leading-relaxed max-w-2xl">
-                {artist.bio}
-              </p>
-            )}
-
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button size="lg">
-                {locale === "ro" ? "Urmărește" : "Follow"}
-              </Button>
-              
-              <Button variant="outline" size="lg">
-                {locale === "ro" ? "Întreabă un Curator" : "Ask a Curator"}
-              </Button>
-            </div>
+          {artist.bio && <p className="mt-2 max-w-2xl opacity-80">{artist.bio}</p>}
+          <div className="mt-3 flex items-center gap-4 text-sm opacity-80">
+            {artist.kpi?.worksCount != null && <span>{artist.kpi.worksCount} works</span>}
+            {artist.kpi?.soldCount != null && <span>{artist.kpi.soldCount} sold</span>}
+          </div>
+          <div className="mt-4 flex gap-3">
+            <Link href={`/${locale}/curator/request?artistId=${artist.id}`} className="px-4 py-2 rounded-xl bg-black text-white">
+              Ask a Curator about this artist
+            </Link>
+            <a href={`/${locale}/discover?artist=${encodeURIComponent(artist.slug)}`} className="px-4 py-2 rounded-xl border">
+              View all works
+            </a>
           </div>
         </div>
       </div>

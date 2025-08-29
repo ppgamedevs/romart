@@ -132,7 +132,7 @@ Required environment variables:
 EMAIL_PROVIDER=RESEND
 EMAIL_FROM="RomArt <no-reply@artfromromania.com>"
 EMAIL_REPLY_TO="curator@artfromromania.com"
-RESEND_API_KEY=re_9snVxsSG_7iPTXsu9hwTKbFbvBhmCmpiH
+RESEND_API_KEY=your_resend_api_key_here
 NOTIF_SIGNED_URL_TTL=900
 ```
 
