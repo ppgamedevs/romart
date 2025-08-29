@@ -84,3 +84,20 @@ export function canonical(base: string, path: string) {
     return base + path;
   }
 }
+
+export function altLanguages(path: string) {
+  const locales = (process.env.LOCALES || "en,ro").split(",");
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const entries: Record<string, string> = {};
+  for (const l of locales) {
+    entries[l] = `${base}/${l}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+  return entries;
+}
+
+export function canonicalUrl(path: string) {
+  const base = process.env.SITE_URL || "http://localhost:3000";
+  const def = process.env.DEFAULT_LOCALE || "en";
+  // canonical fără prefix de locale (sau cu defaultLocale)
+  return `${base}/${def}${path.startsWith("/") ? path : `/${path}`}`;
+}

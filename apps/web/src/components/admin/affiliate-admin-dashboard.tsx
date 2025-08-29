@@ -441,8 +441,10 @@ export function AffiliateAdminDashboard() {
         <Dialog open={showCreatePartner} onOpenChange={setShowCreatePartner}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Partner
+              <span className="flex items-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Partner
+              </span>
             </Button>
           </DialogTrigger>
           <DialogContent>

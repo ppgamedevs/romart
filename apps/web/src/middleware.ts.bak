@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+const locales = (process.env.LOCALES || "en,ro").split(",");
+const defaultLocale = process.env.DEFAULT_LOCALE || "en";
+
+// Ignore API, static, og, etc.
+function isPublic(path: string) {
+  return path.startsWith("/api") || 
+         path.startsWith("/_next") || 
+         path.startsWith("/assets") || 
+         path.startsWith("/favicon") || 
+         path.startsWith("/robots") || 
+         path.startsWith("/sitemap") ||
+         path.includes("/opengraph-image");
+}
+
+export function middleware(req: NextRequest) {
+  // Temporarily disable middleware to test if it's causing the issue
+  return NextResponse.next();
+}
+
+export const config = { 
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};

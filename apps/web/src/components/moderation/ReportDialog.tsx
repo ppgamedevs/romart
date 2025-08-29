@@ -83,8 +83,10 @@ export function ReportDialog({
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
-            <Flag className="w-4 h-4 mr-2" />
-            Report
+            <span className="flex items-center">
+              <Flag className="w-4 h-4 mr-2" />
+              Report
+            </span>
           </Button>
         )}
       </DialogTrigger>

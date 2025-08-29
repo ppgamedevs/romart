@@ -5,6 +5,7 @@ import { ClientProviders } from "@/components/providers/ClientProviders";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const dynamic = 'force-dynamic'
 
@@ -20,14 +21,16 @@ const playfair = Playfair_Display({
 	variable: "--font-serif"
 });
 
-export async function generateStaticParams() {
-	return [{ locale: "en" }, { locale: "ro" }];
+const locales = (process.env.LOCALES || "en,ro").split(",");
+
+export function generateStaticParams() {
+	return locales.map((l) => ({ locale: l }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
 	const { locale } = await params;
 	
-	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://artfromromania.com";
+	const baseUrl = process.env.SITE_URL || "https://artfromromania.com";
 	
 	return {
 		title: {
@@ -95,8 +98,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 			}
 		},
 		verification: {
-			google: "your-google-verification-code",
-			yandex: "your-yandex-verification-code"
+			google: process.env.GOOGLE_SITE_VERIFICATION || "",
 		}
 	};
 }
@@ -111,7 +113,7 @@ export default async function LocaleLayout({
 	const { locale } = await params;
 	
 	// Validate that the incoming `locale` parameter is valid
-	if (!["en", "ro"].includes(locale)) {
+	if (!locales.includes(locale)) {
 		notFound();
 	}
 	
@@ -128,7 +130,9 @@ export default async function LocaleLayout({
 			<body className="min-h-screen bg-background font-sans antialiased">
 				<ErrorBoundary>
 					<ClientProviders>
-						{children}
+						<AppShell locale={locale}>
+							{children}
+						</AppShell>
 						<Toaster />
 					</ClientProviders>
 				</ErrorBoundary>

@@ -82,6 +82,13 @@ import collectionsPublic from "./routes/collections.public";
 import collectionsAdmin from "./routes/collections.admin";
 import trackRoutes from "./routes/track";
 import studioInsights from "./routes/studio.insights";
+import searchReindex from "./routes/search.reindex";
+import searchPublic from "./routes/search.public";
+import searchAdmin from "./routes/search.admin";
+import qaAdmin from "./routes/qa.admin";
+import cronQa from "./routes/cron.qa";
+import publicSlugs from "./routes/public.slugs";
+import homeFeed from "./routes/home.feed";
 
 // Create Fastify instance with Pino logger
 const fastify = Fastify({ 
@@ -228,6 +235,13 @@ await fastify.register(collectionsPublic);
 await fastify.register(collectionsAdmin);
 await fastify.register(trackRoutes);
 await fastify.register(studioInsights);
+await fastify.register(searchReindex);
+await fastify.register(searchPublic);
+		await fastify.register(searchAdmin);
+		await fastify.register(qaAdmin);
+		await fastify.register(cronQa);
+		await fastify.register(publicSlugs);
+		await fastify.register(homeFeed);
 		
 		// Curator routes
 		await fastify.register(curatorsPublic);

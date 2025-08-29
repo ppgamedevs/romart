@@ -71,9 +71,11 @@ export function CurrencySwitcher() {
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <DollarSign className="h-4 w-4 mr-2" />
-          {currencies[currentCurrency].symbol}
-          <ChevronDown className="h-4 w-4 ml-2" />
+          <span className="flex items-center">
+            <DollarSign className="h-4 w-4 mr-2" />
+            {currencies[currentCurrency].symbol}
+            <ChevronDown className="h-4 w-4 ml-2" />
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

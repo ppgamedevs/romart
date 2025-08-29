@@ -24,13 +24,13 @@ export default function NotFound() {
           </p>
           <div className="flex gap-2">
             <Button asChild className="flex-1">
-              <Link href="/">
+              <Link href="/en" className="flex items-center">
                 <Home className="mr-2 h-4 w-4" />
                 Go home
               </Link>
             </Button>
             <Button variant="outline" asChild className="flex-1">
-              <Link href="/discover">
+              <Link href="/en/discover" className="flex items-center">
                 <Search className="mr-2 h-4 w-4" />
                 Browse art
               </Link>

@@ -1,102 +1,96 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AspectRatio } from "@/components/ui/aspect-ratio"
-import { Palette, User } from "lucide-react"
-import { CdnImage } from "@/components/ui/cdn-image"
+
+import Image from "next/image";
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface ArtworkCardProps {
-	artwork?: {
-		id: string
-		title: string
-		artist: string
-		price: number
-		type: "Original" | "Print" | "Digital"
-		imageUrl?: string
-	}
-	loading?: boolean
+  id: string;
+  slug: string;
+  title: string;
+  artistName: string;
+  image: string;
+  minPriceMinor?: number | null;
+  priceMinor?: number | null;
+  salePct?: number | null;
+  locale: string;
 }
 
-export function ArtworkCard({ artwork, loading = false }: ArtworkCardProps) {
-	const [promo, setPromo] = useState<{ sale: boolean; pct: number } | null>(null);
+export function ArtworkCard({
+  id,
+  slug,
+  title,
+  artistName,
+  image,
+  minPriceMinor,
+  priceMinor,
+  salePct,
+  locale,
+}: ArtworkCardProps) {
+  const displayPrice = minPriceMinor ?? priceMinor;
+  const hasSale = salePct && salePct > 0;
 
-	useEffect(() => {
-		if (artwork?.id) {
-			fetch("/api/public/promo/bulk", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ artworkIds: [artwork.id] })
-			})
-				.then(r => r.json())
-				.then(j => setPromo(j.items?.[artwork.id] || null))
-				.catch(() => { });
-		}
-	}, [artwork?.id]);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="group relative"
+    >
+      <Link href={`/${locale}/artwork/${slug}`} className="block">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-100">
+          <Image
+            src={image}
+            alt={title}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          />
+          
+          {/* Sale Badge */}
+          {hasSale && (
+            <div className="absolute top-3 left-3 z-10">
+              <Badge variant="sale">
+                SALE -{salePct}%
+              </Badge>
+            </div>
+          )}
 
-	if (loading) {
-		return (
-			<Card className="overflow-hidden">
-				<CardHeader className="pb-4">
-					<Skeleton className="aspect-[4/3] w-full" />
-				</CardHeader>
-				<CardContent className="pb-4">
-					<div className="space-y-2">
-						<Skeleton className="h-4 w-3/4" />
-						<Skeleton className="h-3 w-1/2" />
-						<Skeleton className="h-4 w-1/3" />
-					</div>
-				</CardContent>
-				<CardFooter>
-					<Skeleton className="h-6 w-16" />
-				</CardFooter>
-			</Card>
-		)
-	}
+          {/* Quick View Button */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 hover:bg-white text-fg"
+              onClick={(e) => {
+                e.preventDefault();
+                // Quick view functionality would go here
+                console.log("Quick view:", id);
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Quick View
+            </Button>
+          </div>
+        </div>
 
-	if (!artwork) return null
-
-	return (
-		<Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 relative">
-			{/* SALE badge */}
-			{promo?.sale && (
-				<div className="absolute top-2 left-2 z-10 text-[11px] px-2 py-1 rounded-full bg-red-600 text-white">
-					SALE -{promo.pct}%
-				</div>
-			)}
-			<CardHeader className="pb-4">
-				<AspectRatio ratio={4 / 3} className="overflow-hidden rounded-lg">
-					{artwork.imageUrl ? (
-						<CdnImage
-							src={artwork.imageUrl}
-							alt={artwork.title}
-							width={400}
-							height={300}
-							className="h-full w-full object-cover"
-						/>
-					) : (
-						<div className="h-full w-full bg-muted flex items-center justify-center">
-							<Palette className="h-12 w-12 text-muted-foreground" />
-						</div>
-					)}
-				</AspectRatio>
-			</CardHeader>
-			<CardContent className="pb-4">
-				<div className="space-y-2">
-					<h3 className="font-semibold text-lg line-clamp-1">{artwork.title}</h3>
-					<div className="flex items-center gap-1 text-sm text-muted-foreground">
-						<User className="h-3 w-3" />
-						{artwork.artist}
-					</div>
-					<div className="text-lg font-semibold text-primary">
-						${artwork.price.toLocaleString()}
-					</div>
-				</div>
-			</CardContent>
-			<CardFooter>
-				<Badge variant="secondary">{artwork.type}</Badge>
-			</CardFooter>
-		</Card>
-	)
+        <div className="mt-3 space-y-1">
+          <h3 className="font-medium text-fg line-clamp-1 group-hover:text-accent transition-colors">
+            {title}
+          </h3>
+          <p className="text-sm text-muted">
+            {artistName}
+          </p>
+          {displayPrice && (
+            <p className="text-sm font-medium text-fg">
+              {minPriceMinor ? `From ${(displayPrice / 100).toFixed(2)} €` : `${(displayPrice / 100).toFixed(2)} €`}
+            </p>
+          )}
+        </div>
+      </Link>
+    </motion.div>
+  );
 }

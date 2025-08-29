@@ -1,28 +1,86 @@
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+"use client";
 
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-const TooltipProvider = TooltipPrimitive.Provider
+interface TooltipProps {
+  content: string;
+  children: React.ReactNode;
+  position?: "top" | "bottom" | "left" | "right";
+  className?: string;
+}
 
-const Tooltip = TooltipPrimitive.Root
+export function Tooltip({ content, children, position = "top", className }: TooltipProps) {
+  const [isVisible, setIsVisible] = React.useState(false);
+  const [coords, setCoords] = React.useState({ x: 0, y: 0 });
 
-const TooltipTrigger = TooltipPrimitive.Trigger
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCoords({ x: rect.left + rect.width / 2, y: rect.top });
+    setIsVisible(true);
+  };
 
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-      className
-    )}
-    {...props}
-  />
-))
-TooltipContent.displayName = TooltipPrimitive.Content.displayName
+  const handleMouseLeave = () => {
+    setIsVisible(false);
+  };
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+  const getPositionClasses = () => {
+    switch (position) {
+      case "top":
+        return "bottom-full left-1/2 transform -translate-x-1/2 -translate-y-2 mb-1";
+      case "bottom":
+        return "top-full left-1/2 transform -translate-x-1/2 translate-y-2 mt-1";
+      case "left":
+        return "right-full top-1/2 transform -translate-y-1/2 -translate-x-2 mr-1";
+      case "right":
+        return "left-full top-1/2 transform -translate-y-1/2 translate-x-2 ml-1";
+      default:
+        return "bottom-full left-1/2 transform -translate-x-1/2 -translate-y-2 mb-1";
+    }
+  };
+
+  const getArrowClasses = () => {
+    switch (position) {
+      case "top":
+        return "top-full left-1/2 transform -translate-x-1/2 border-t-border";
+      case "bottom":
+        return "bottom-full left-1/2 transform -translate-x-1/2 border-b-border";
+      case "left":
+        return "left-full top-1/2 transform -translate-y-1/2 border-l-border";
+      case "right":
+        return "right-full top-1/2 transform -translate-y-1/2 border-r-border";
+      default:
+        return "top-full left-1/2 transform -translate-x-1/2 border-t-border";
+    }
+  };
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+      
+      {isVisible && (
+        <div
+          className={cn(
+            "absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded-lg shadow-lg whitespace-nowrap",
+            "transition-opacity duration-200",
+            getPositionClasses(),
+            className
+          )}
+          role="tooltip"
+        >
+          {content}
+          <div
+            className={cn(
+              "absolute w-0 h-0 border-4 border-transparent",
+              getArrowClasses()
+            )}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

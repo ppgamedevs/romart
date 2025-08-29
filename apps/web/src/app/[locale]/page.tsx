@@ -1,136 +1,94 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { dict, t as T } from "@/components/i18n/t";
+import HomeHero from "@/components/home/HomeHero";
+import { ArtworkRail, CollectionsRail } from "@/components/home/Rail";
+import JsonLd from "@/components/seo/JsonLd";
+
+export const revalidate = 900; // 15 min
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-	const { locale } = await params;
-	
-	return {
-		title: locale === "ro" ? "Artfromromania - Piața de Artă Românească" : "Artfromromania - Romanian Art Marketplace",
-		description: locale === "ro" 
-			? "Descoperă și colecționează artă românească originală, printuri și lucrări digitale de la artiști talentați."
-			: "Discover and collect original Romanian art, prints, and digital artworks from talented artists.",
-	};
+  const { locale } = await params;
+  const title = process.env.SITE_NAME || "Art from Romania";
+  const baseUrl = "http://localhost:3000";
+  return {
+    title,
+    description: "Buy curated Romanian art — paintings, drawings, photography, digital.",
+    alternates: {
+      canonical: `${baseUrl}/${locale}`,
+      languages: {
+        en: `${baseUrl}/en`,
+        ro: `${baseUrl}/ro`
+      }
+    },
+    openGraph: { title, url: `${baseUrl}/${locale}` }
+  };
 }
 
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
-	const { locale } = await params;
-	
-	return (
-		<main className="flex min-h-screen flex-col items-center justify-between p-24">
-			<div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-				<p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-					{locale === "ro" ? "Bine ai venit la" : "Welcome to"}&nbsp;
-					<code className="font-mono font-bold">Artfromromania</code>
-				</p>
-				<div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-					<a
-						className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-						href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						{locale === "ro" ? "De către" : "By"}{" "}
-						<img
-							src="/vercel.svg"
-							alt="Vercel Logo"
-							className="dark:invert"
-							width={100}
-							height={24}
-						/>
-					</a>
-				</div>
-			</div>
+async function fetchHome() {
+  try {
+    const r = await fetch("http://localhost:3000/api/home-feed", { 
+      next: { revalidate: 900 }
+    });
+    if (!r.ok) return { collections: [], trending: [], newest: [], underPrice: [] };
+    return r.json();
+  } catch (error) {
+    console.error("Failed to fetch home feed:", error);
+    return { collections: [], trending: [], newest: [], underPrice: [] };
+  }
+}
 
-			<div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-				<img
-					className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-					src="/next.svg"
-					alt="Next.js Logo"
-					width={180}
-					height={37}
-				/>
-			</div>
+export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = T(locale);
+  
+  // Fetch home data
+  const { collections, trending, newest, underPrice } = await fetchHome();
 
-			<div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-				<a
-					href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-					className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<h2 className={`mb-3 text-2xl font-semibold`}>
-						{locale === "ro" ? "Documentație" : "Docs"}{" "}
-						<span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-							-&gt;
-						</span>
-					</h2>
-					<p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-						{locale === "ro" 
-							? "Găsește informații detaliate despre Next.js și funcționalitățile sale."
-							: "Find in-depth information about Next.js features and API."
-						}
-					</p>
-				</a>
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <HomeHero t={t} locale={locale} />
+      
+      <CollectionsRail 
+        title={t("featuredCollections")} 
+        items={collections} 
+        locale={locale} 
+      />
+      
+      <ArtworkRail 
+        title={t("trendingNow")} 
+        items={trending} 
+        locale={locale} 
+      />
+      
+      <ArtworkRail 
+        title={t("newArrivals")} 
+        items={newest} 
+        locale={locale} 
+      />
+      
+      <ArtworkRail 
+        title={t("under500")} 
+        items={underPrice} 
+        locale={locale} 
+      />
 
-				<a
-					href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<h2 className={`mb-3 text-2xl font-semibold`}>
-						{locale === "ro" ? "Învață" : "Learn"}{" "}
-						<span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-							-&gt;
-						</span>
-					</h2>
-					<p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-						{locale === "ro"
-							? "Învață Next.js într-un curs interactiv cu teste!"
-							: "Learn about Next.js in an interactive course with quizzes!"
-						}
-					</p>
-				</a>
-
-				<a
-					href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-					className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<h2 className={`mb-3 text-2xl font-semibold`}>
-						{locale === "ro" ? "Template-uri" : "Templates"}{" "}
-						<span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-							-&gt;
-						</span>
-					</h2>
-					<p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-						{locale === "ro"
-							? "Explorează template-urile Next.js create de comunitate."
-							: "Explore the Next.js 13 playground."
-						}
-					</p>
-				</a>
-
-				<a
-					href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-					className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<h2 className={`mb-3 text-2xl font-semibold`}>
-						{locale === "ro" ? "Deploy" : "Deploy"}{" "}
-						<span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-							-&gt;
-						</span>
-					</h2>
-					<p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-						{locale === "ro"
-							? "Deployează instant aplicația Next.js pe o platformă Vercel."
-							: "Instantly deploy your Next.js site to a shareable URL with Vercel."
-						}
-					</p>
-				</a>
-			</div>
-		</main>
-	);
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Art from Romania",
+          "description": "Buy curated Romanian art — paintings, drawings, photography, digital.",
+          "url": "http://localhost:3000",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "http://localhost:3000/discover?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        }}
+      />
+    </div>
+  );
 }

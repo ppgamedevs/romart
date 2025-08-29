@@ -2050,25 +2050,157 @@ enum AnalyticsEventType {
 
 // Evenimente de analytics pentru insights
 model AnalyticsEvent {
-	id         String   @id @default(cuid())
-	type       AnalyticsEventType
-	ts         DateTime @default(now())
-	userId     String?
-	sessionId  String?             // client-generated UUID
-	artistId   String?
-	artworkId  String?
-	collectionId String?
-	referrer   String?
-	utmSource  String?
-	utmMedium  String?
-	utmCampaign String?
-	country    String?             // ISO2
-	device     String?             // mobile/desktop
-	priceMinor Int?                // snapshot optional
-	createdAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  type       AnalyticsEventType
+  ts         DateTime @default(now())
+  userId     String?
+  sessionId  String?             // client-generated UUID
+  artistId   String?
+  artworkId  String?
+  collectionId String?
+  referrer   String?
+  utmSource  String?
+  utmMedium  String?
+  utmCampaign String?
+  country    String?             // ISO2
+  device     String?             // mobile/desktop
+  priceMinor Int?                // snapshot optional
+  createdAt  DateTime @default(now())
 
-	@@index([artistId, ts])
-	@@index([artworkId, ts])
-	@@index([type, ts])
-	@@map("analytics_events")
+  @@index([artistId, ts])
+  @@index([artworkId, ts])
+  @@index([type, ts])
+  @@map("analytics_events")
+}
+
+model SearchItem {
+  id            String   @id            // = artwork.id
+  kind          String   // "ARTWORK"
+  slug          String   @unique
+  title         String
+  artistName    String
+  medium        ProductMedium
+  tags          String[] @default([])
+  priceMinor    Int?     // saleMinor || priceMinor
+  minPriceMinor Int?     // NOU: „de la"
+  widthCm       Float?
+  heightCm      Float?
+  orientation   String?  // PORTRAIT | LANDSCAPE | SQUARE
+  curatedScore  Float    @default(0)   // din colecții/featured
+  boostScore    Float    @default(0)   // NOU: scor global de boost precomputat
+  views30       Int      @default(0)
+  saves30       Int      @default(0)
+  purchases90   Int      @default(0)
+  publishedAt   DateTime?
+  updatedAt     DateTime @updatedAt
+  // NOTĂ: tsvector & indici se adaugă prin SQL raw în migrare
+
+  @@map("search_items")
+}
+
+enum SearchBoostScope {
+  GLOBAL
+  MEDIUM
+  ARTIST
+  ARTWORK
+  TAG
+}
+
+model SearchSynonym {
+  id        String   @id @default(cuid())
+  canonical String
+  variants  String[] @default([])     // ex: ["portret","portrait","portait"]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([canonical])
+  @@map("search_synonyms")
+}
+
+model SearchBoostRule {
+  id        String   @id @default(cuid())
+  scope     SearchBoostScope
+  medium    ProductMedium?
+  artistId  String?
+  artworkId String?
+  tag       String?
+  weight    Float    // ex: 0.2 .. 2.0 (aplicat aditiv, plafonat)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("search_boost_rules")
+}
+
+// =============================================================================
+// Content QA & Broken Images Monitor
+// =============================================================================
+
+enum QAIssueSeverity {
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum QAIssueStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum QAIssueCode {
+  // Image issues
+  IMAGE_404
+  IMAGE_5XX
+  IMAGE_TIMEOUT
+  IMAGE_TOO_SMALL
+  IMAGE_ZERO_BYTES
+  IMAGE_WRONG_CONTENT_TYPE
+  
+  // Content issues
+  MISSING_PRICE
+  MISSING_DIMENSIONS
+  MISSING_OG_DATA
+  COLLECTION_NO_COVER
+  
+  // Performance issues
+  IMAGE_SLOW_RESPONSE
+  IMAGE_LARGE_SIZE
+}
+
+model QAIssue {
+  id          String         @id @default(cuid())
+  code        QAIssueCode
+  severity    QAIssueSeverity
+  status      QAIssueStatus  @default(OPEN)
+  
+  // Target identification
+  artworkId   String?
+  artistId    String?
+  collectionId String?
+  imageUrl    String?
+  
+  // Issue details
+  title       String         // human readable
+  description String?        // technical details
+  metadata    Json?          // additional data (dimensions, response time, etc.)
+  
+  // Timestamps
+  firstSeen   DateTime       @default(now())
+  lastSeen    DateTime       @updatedAt
+  resolvedAt  DateTime?
+  
+  // Resolution
+  resolvedBy  String?        // userId
+  resolution  String?        // what was done
+  
+  @@index([status, severity])
+  @@index([artworkId])
+  @@index([artistId])
+  @@index([collectionId])
+  @@index([firstSeen])
+  @@map("qa_issues")
 }

@@ -161,8 +161,10 @@ export function CreatorCodesManager() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Code
+              <span className="flex items-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Code
+              </span>
             </Button>
           </DialogTrigger>
           <DialogContent>

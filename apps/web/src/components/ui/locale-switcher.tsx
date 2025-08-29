@@ -60,9 +60,11 @@ export function LocaleSwitcher() {
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <Globe className="h-4 w-4 mr-2" />
-          {currentLocale.flag}
-          <ChevronDown className="h-4 w-4 ml-2" />
+          <span className="flex items-center">
+            <Globe className="h-4 w-4 mr-2" />
+            {currentLocale.flag}
+            <ChevronDown className="h-4 w-4 ml-2" />
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

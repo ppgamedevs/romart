@@ -168,8 +168,10 @@ export function EditionsTab({ artwork }: EditionsTabProps) {
               <Dialog>
                 <DialogTrigger asChild>
                   <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Print Edition
+                    <span className="flex items-center">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Print Edition
+                    </span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -300,8 +302,10 @@ export function EditionsTab({ artwork }: EditionsTabProps) {
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Digital Edition
+                      <span className="flex items-center">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Digital Edition
+                      </span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
